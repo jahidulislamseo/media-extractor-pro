@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Icon Generator – Image Extractor Pro</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #09090f; color: #f1f5f9; display:flex; flex-direction:column; align-items:center; padding:40px 20px; gap:20px; }
+  h2 { font-size:18px; background:linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  p  { font-size:13px; color:#94a3b8; }
+  .canvases { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; justify-content:center; }
+  .icon-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .icon-wrap span { font-size:11px; color:#475569; }
+  button { margin-top:6px; padding:6px 12px; border-radius:6px; background:linear-gradient(135deg,#6366f1,#a78bfa); color:#fff; border:none; font-size:11px; cursor:pointer; font-weight:600; }
+  button:hover { opacity:0.85; }
+  #status { font-size:12px; color:#10b981; }
+</style>
+</head>
+<body>
+<h2>Image Extractor Pro — Icon Generator</h2>
+<p>Click "Save All Icons" to download all 4 icon sizes. Place them in the <code>icons/</code> folder.</p>
+<div class="canvases" id="canvases"></div>
+<button onclick="saveAll()">⬇ Save All Icons (16, 32, 48, 128)</button>
+<p id="status"></p>
+
+<script>
+const SIZES = [16, 32, 48, 128];
+
+function drawIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const s = size;
+
+  // Background
+  ctx.clearRect(0, 0, s, s);
+
+  // Rounded rect background
+  const r = s * 0.22;
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r);
+  ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s);
+  ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, s, s);
+  grad.addColorStop(0, '#6366f1');
+  grad.addColorStop(1, '#a78bfa');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Inner frame (lighter)
+  const pad = s * 0.12;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = Math.max(1, s * 0.04);
+  const ir = s * 0.1;
+  const ix = pad, iy = pad, iw = s - pad*2, ih = s - pad*2;
+  ctx.beginPath();
+  ctx.moveTo(ix + ir, iy);
+  ctx.lineTo(ix + iw - ir, iy);
+  ctx.quadraticCurveTo(ix + iw, iy, ix + iw, iy + ir);
+  ctx.lineTo(ix + iw, iy + ih - ir);
+  ctx.quadraticCurveTo(ix + iw, iy + ih, ix + iw - ir, iy + ih);
+  ctx.lineTo(ix + ir, iy + ih);
+  ctx.quadraticCurveTo(ix, iy + ih, ix, iy + ih - ir);
+  ctx.lineTo(ix, iy + ir);
+  ctx.quadraticCurveTo(ix, iy, ix + ir, iy);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Sun / circle
+  const cx = s * 0.32, cy = s * 0.38, cr = s * 0.12;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fill();
+
+  // Mountain lines
+  ctx.beginPath();
+  ctx.moveTo(pad, s - pad * 1.2);
+  ctx.lineTo(s * 0.32, s * 0.5);
+  ctx.lineTo(s * 0.52, s * 0.66);
+  ctx.lineTo(s * 0.68, s * 0.48);
+  ctx.lineTo(s - pad, s - pad * 1.2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = Math.max(1.2, s * 0.055);
+  ctx.lineJoin = 'round';
+  ctx.lineCap  = 'round';
+  ctx.stroke();
+
+  // Download arrow (small, bottom right) — only for >= 32px
+  if (s >= 32) {
+    const ax = s * 0.72, ay = s * 0.70, aw = s * 0.18, ah = s * 0.16;
+    ctx.beginPath();
+    ctx.moveTo(ax + aw / 2, ay);
+    ctx.lineTo(ax + aw / 2, ay + ah * 0.65);
+    ctx.moveTo(ax, ay + ah * 0.4);
+    ctx.lineTo(ax + aw / 2, ay + ah * 0.75);
+    ctx.lineTo(ax + aw, ay + ah * 0.4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = Math.max(1, s * 0.045);
+    ctx.lineCap  = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  return canvas;
+}
+
+function init() {
+  const wrap = document.getElementById('canvases');
+  SIZES.forEach(size => {
+    const canvas = drawIcon(size);
+    const div = document.createElement('div');
+    div.className = 'icon-wrap';
+    div.appendChild(canvas);
+    const lbl = document.createElement('span');
+    lbl.textContent = `${size}×${size}`;
+    div.appendChild(lbl);
+    wrap.appendChild(div);
+  });
+}
+
+function saveAll() {
+  SIZES.forEach((size, i) => {
+    setTimeout(() => {
+      const canvas = drawIcon(size);
+      const a = document.createElement('a');
+      a.download = `icon${size}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }, i * 300);
+  });
+  document.getElementById('status').textContent = '✅ All 4 icons downloaded! Place them in the icons/ folder.';
+}
+
+init();
+</script>
+</body>
+</html>
