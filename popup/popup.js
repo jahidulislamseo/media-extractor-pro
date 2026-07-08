@@ -55,6 +55,8 @@ const modalDownload    = $('modalDownload');
 // Tabs
 const tabImages        = $('tabImages');
 const tabVideos        = $('tabVideos');
+const tabImgCount      = $('tabImgCount');
+const tabVidCount      = $('tabVidCount');
 
 // ── Init ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -94,6 +96,9 @@ async function scanPage() {
         count: allImages.length + allVideos.length
       }).catch(() => {});
 
+      // Update tab count badges
+      updateTabCounts();
+
       // Resolve image dimensions in background
       resolveDimensions(allImages).then(() => {
         if (currentTab === 'images') applyFilters();
@@ -109,6 +114,12 @@ async function scanPage() {
   } finally {
     refreshBtn.classList.remove('spinning');
   }
+}
+
+// ── Tab Count Badges ─────────────────────────
+function updateTabCounts() {
+  tabImgCount.textContent = allImages.length > 0 ? allImages.length : '';
+  tabVidCount.textContent = allVideos.length > 0 ? allVideos.length : '';
 }
 
 // ── Dimension resolver for Images ─────────────
@@ -473,9 +484,67 @@ function setupListeners() {
   modalOpenTab.addEventListener('click', () => { if (currentPreview) chrome.tabs.create({ url: currentPreview.url }); });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closePreview();
+    if (e.key === 'Escape') {
+      closePreview();
+      closeAboutPanel();
+    }
+  });
+
+  // ── About / Info Panel ──────────────────────
+  const infoBtn    = $('infoBtn');
+  const aboutPanel = $('aboutPanel');
+  const aboutClose = $('aboutClose');
+
+  function openAboutPanel() {
+    aboutPanel.classList.add('open');
+    infoBtn.classList.add('active');
+  }
+  function closeAboutPanel() {
+    aboutPanel.classList.remove('open');
+    infoBtn.classList.remove('active');
+  }
+
+  infoBtn.addEventListener('click', () => {
+    if (aboutPanel.classList.contains('open')) {
+      closeAboutPanel();
+    } else {
+      openAboutPanel();
+    }
+  });
+
+  aboutClose.addEventListener('click', closeAboutPanel);
+
+  // Close panel when clicking outside of it
+  document.addEventListener('click', e => {
+    if (
+      aboutPanel.classList.contains('open') &&
+      !aboutPanel.contains(e.target) &&
+      e.target !== infoBtn &&
+      !infoBtn.contains(e.target)
+    ) {
+      closeAboutPanel();
+    }
+  });
+
+  // External links (open in new tab)
+  $('linkHome').addEventListener('click', e => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'https://www.unifiedtoolspro.xyz/' });
+  });
+  $('linkSupport').addEventListener('click', e => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'https://github.com/jahidulislamseo/media-extractor-pro' });
+  });
+  $('linkRate').addEventListener('click', e => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'https://chromewebstore.google.com/detail/edeandmopjnajlgijafaajopdbleoklj' });
+  });
+  $('linkPrivacy').addEventListener('click', e => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'https://github.com/jahidulislamseo/media-extractor-pro/blob/main/PRIVACY.md' });
   });
 }
+
 
 // ── Download Handling ─────────────────────────
 async function handleDownloadAll() {

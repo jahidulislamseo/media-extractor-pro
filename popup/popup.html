@@ -39,20 +39,104 @@
       <button class="icon-btn" id="refreshBtn" title="Re-scan page">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <button class="icon-btn" id="infoBtn" title="About & Info">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </header>
 
-  <!-- ── Navigation Tabs ─────────────────── -->
+  <!-- ── About Panel ──────────────────────── -->
+  <div class="about-panel" id="aboutPanel">
+    <div class="about-header">
+      <div class="about-title">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>About Media Extractor Pro</span>
+      </div>
+      <button class="about-close" id="aboutClose" title="Close">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="about-body">
+
+      <!-- Version & ID -->
+      <div class="about-card about-identity">
+        <div class="about-logo-row">
+          <div class="about-logo-ico">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs><linearGradient id="abl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs>
+              <rect x="2" y="2" width="20" height="20" rx="4" fill="url(#abl)" opacity="0.15"/>
+              <rect x="2" y="2" width="20" height="20" rx="4" stroke="url(#abl)" stroke-width="1.5"/>
+              <circle cx="8.5" cy="8.5" r="2" fill="url(#abl)"/>
+              <path d="M2 16l5-5 4 4 3-3 8 8" stroke="url(#abl)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="about-app-name">Media Extractor Pro</div>
+            <div class="about-app-ver">Version 1.0.0 &nbsp;·&nbsp; Manifest V3</div>
+          </div>
+        </div>
+        <p class="about-desc">A powerful browser extension that instantly detects and extracts all images and videos from any webpage. Works 100% locally — no data is ever uploaded.</p>
+      </div>
+
+      <!-- Features -->
+      <div class="about-card">
+        <div class="about-section-title">✨ Features</div>
+        <ul class="about-features">
+          <li><span class="feat-ico">🖼️</span> Extract JPG, PNG, GIF, WEBP, SVG, AVIF, BMP, ICO</li>
+          <li><span class="feat-ico">🎥</span> Detect MP4, WEBM, OGV + YouTube & Vimeo embeds</li>
+          <li><span class="feat-ico">🔍</span> Filter by format, dimension size & keyword search</li>
+          <li><span class="feat-ico">⬇️</span> Bulk select & download with smart queue</li>
+          <li><span class="feat-ico">📋</span> Copy any media URL with one click</li>
+          <li><span class="feat-ico">🔒</span> 100% local — no account, no tracking, no uploads</li>
+        </ul>
+      </div>
+
+      <!-- Links -->
+      <div class="about-card about-links-card">
+        <div class="about-section-title">🔗 Links</div>
+        <div class="about-links">
+          <a class="about-link" id="linkHome" href="#" title="Homepage">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Homepage
+          </a>
+          <a class="about-link" id="linkSupport" href="#" title="Support & Issues">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+            GitHub Support
+          </a>
+          <a class="about-link" id="linkRate" href="#" title="Rate on Chrome Web Store">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Rate on Chrome Store
+          </a>
+          <a class="about-link" id="linkPrivacy" href="#" title="Privacy Policy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Privacy Policy
+          </a>
+        </div>
+      </div>
+
+      <!-- Privacy note -->
+      <div class="about-privacy-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        No data collected &nbsp;·&nbsp; No account required &nbsp;·&nbsp; Open source
+      </div>
+
+    </div>
+  </div>
+
   <div class="tabs">
     <button class="tab-btn active" id="tabImages">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       Images
+      <span class="tab-count" id="tabImgCount"></span>
     </button>
     <button class="tab-btn" id="tabVideos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
       Videos
+      <span class="tab-count" id="tabVidCount"></span>
     </button>
   </div>
+
 
   <!-- ── Filter Bar ──────────────────────── -->
   <div class="filter-bar">
