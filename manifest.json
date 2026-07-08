@@ -15,7 +15,6 @@
     "downloads",
     "tabs"
   ],
-  "host_permissions": ["<all_urls>"],
 
   "action": {
     "default_popup": "popup/popup.html",
@@ -43,13 +42,6 @@
 
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  },
-
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/*.png"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }
 
