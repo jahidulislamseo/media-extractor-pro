@@ -541,7 +541,7 @@ function setupListeners() {
   });
   $('linkPrivacy').addEventListener('click', e => {
     e.preventDefault();
-    chrome.tabs.create({ url: 'https://github.com/jahidulislamseo/media-extractor-pro/blob/main/PRIVACY.md' });
+    chrome.tabs.create({ url: 'https://github.com/jahidulislamseo/media-extractor-pro/blob/master/PRIVACY.md' });
   });
 }
 
