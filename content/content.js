@@ -135,6 +135,37 @@
       if (content) addImage(content, { source: 'meta' });
     });
 
+    // 6. Inline SVG elements
+    document.querySelectorAll('svg').forEach((svg, idx) => {
+      // Avoid tiny or empty SVGs
+      if (svg.children.length === 0) return;
+      
+      let w = svg.width?.baseVal?.value || svg.getBoundingClientRect().width || 24;
+      let h = svg.height?.baseVal?.value || svg.getBoundingClientRect().height || 24;
+      
+      try {
+        const clone = svg.cloneNode(true);
+        if (!clone.getAttribute('xmlns')) {
+          clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        }
+        
+        const svgString = new XMLSerializer().serializeToString(clone);
+        const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        const virtualUrl = `inline-svg-${idx}-${Date.now()}.svg`;
+        
+        map.set(virtualUrl, {
+          url: dataUrl,
+          virtual: true,
+          rawSvg: svgString,
+          alt: svg.getAttribute('aria-label') || svg.querySelector('title')?.textContent || 'Inline SVG Icon',
+          width: Math.round(w),
+          height: Math.round(h),
+          type: 'svg',
+          source: 'inline'
+        });
+      } catch (err) { /* noop */ }
+    });
+
     return Array.from(map.values());
   }
 

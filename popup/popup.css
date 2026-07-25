@@ -762,3 +762,107 @@ body {
   background: rgba(99,102,241,0.12);
 }
 
+/* ── Options Panel ───────────────────────── */
+.options-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--b0);
+  padding: 0 14px;
+}
+.options-panel.open {
+  max-height: 80px;
+  padding: 10px 14px;
+}
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.option-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.option-field label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--t2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.option-field input {
+  padding: 6px 10px;
+  font-size: 11px;
+  background: var(--bg0);
+  border: 1px solid var(--b0);
+  border-radius: var(--r1);
+  color: var(--t1);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.option-field input:focus {
+  border-color: var(--p1);
+}
+
+/* ── Alt Text Styling ────────────────────── */
+.card-alt-badge {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #f1f5f9;
+  font-size: 9px;
+  padding: 4px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+}
+.img-card:hover .card-alt-badge {
+  opacity: 1;
+}
+
+.list-alt {
+  font-size: 10px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+.list-alt.has-alt {
+  color: #10b981;
+}
+.list-alt.no-alt {
+  color: #f59e0b;
+  font-style: italic;
+}
+
+.meta-alt-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--r1);
+  margin-top: 8px;
+  border: 1px solid var(--b0);
+  width: fit-content;
+}
+.meta-alt-pill.has-alt {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #064e3b;
+}
+.meta-alt-pill.no-alt {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #78350f;
+}
+

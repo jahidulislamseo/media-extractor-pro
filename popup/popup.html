@@ -73,7 +73,7 @@
           </div>
           <div>
             <div class="about-app-name">Media Extractor Pro</div>
-            <div class="about-app-ver">Version 1.0.0 &nbsp;·&nbsp; Manifest V3</div>
+            <div class="about-app-ver" id="aboutAppVer">Version 1.1.0 &nbsp;·&nbsp; Manifest V3</div>
           </div>
         </div>
         <p class="about-desc">A powerful browser extension that instantly detects and extracts all images and videos from any webpage. Works 100% locally — no data is ever uploaded.</p>
@@ -84,9 +84,12 @@
         <div class="about-section-title">✨ Features</div>
         <ul class="about-features">
           <li><span class="feat-ico">🖼️</span> Extract JPG, PNG, GIF, WEBP, SVG, AVIF, BMP, ICO</li>
+          <li><span class="feat-ico">⚡</span> Inline SVG extraction & raw source code copy</li>
           <li><span class="feat-ico">🎥</span> Detect MP4, WEBM, OGV + YouTube & Vimeo embeds</li>
-          <li><span class="feat-ico">🔍</span> Filter by format, dimension size & keyword search</li>
-          <li><span class="feat-ico">⬇️</span> Bulk select & download with smart queue</li>
+          <li><span class="feat-ico">🔍</span> Filter by format, size & keyword search</li>
+          <li><span class="feat-ico">📊</span> Export Alt Text & media metadata to CSV sheet</li>
+          <li><span class="feat-ico">🔗</span> 1-Click format conversion via UnifiedTools Pro</li>
+          <li><span class="feat-ico">⏳</span> Live download progress tracking indicator</li>
           <li><span class="feat-ico">📋</span> Copy any media URL with one click</li>
           <li><span class="feat-ico">🔒</span> 100% local — no account, no tracking, no uploads</li>
         </ul>
@@ -195,14 +198,36 @@
       <span>Select all</span>
     </label>
     <span class="sel-count" id="selCount">0 selected</span>
-    <button class="txt-btn" id="viewToggle" title="Toggle view">
-      <svg id="viewToggleIcon" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-      </svg>
-    </button>
+    <div style="display: flex; gap: 6px;">
+      <button class="txt-btn" id="optionsToggle" title="Rename & Folder Options">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button class="txt-btn" id="viewToggle" title="Toggle view">
+        <svg id="viewToggleIcon" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Collapsible Options Panel ─────────── -->
+  <div class="options-panel" id="optionsPanel">
+    <div class="options-grid">
+      <div class="option-field">
+        <label for="subfolderInput">Sub-folder</label>
+        <input id="subfolderInput" type="text" placeholder="e.g. logos" value="media-extractor-pro" />
+      </div>
+      <div class="option-field">
+        <label for="renamePatternInput">Rename Template</label>
+        <input id="renamePatternInput" type="text" placeholder="e.g. img-[index]" />
+      </div>
+    </div>
   </div>
 
   <!-- ── Grid / List ─────────────────────── -->
@@ -235,6 +260,27 @@
       </svg>
       Copy URLs
     </button>
+    <button class="btn btn-ghost" id="exportCsvBtn" title="Export Alt Text & Media CSV">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Export CSV
+    </button>
+    <button class="btn btn-ghost" id="bulkConvertBtn" title="Convert selected images with UnifiedTools Pro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 3h5v5"/>
+        <path d="M8 3H3v5"/>
+        <path d="M12 22v-8"/>
+        <path d="M12 14l-4 4"/>
+        <path d="M12 14l4 4"/>
+        <path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/>
+      </svg>
+      Convert
+    </button>
     <button class="btn btn-primary" id="downloadBtn">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 16l-5-5h3V4h4v7h3l-5 5z"/>
@@ -265,7 +311,9 @@
       <div class="modal-url" id="modalUrl"></div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="modalCopy">Copy URL</button>
+        <button class="btn btn-ghost" id="modalCopySvg" style="display:none;">Copy SVG Code</button>
         <button class="btn btn-ghost" id="modalOpenTab">Open in Tab</button>
+        <button class="btn btn-ghost" id="modalConvert">Convert Image</button>
         <button class="btn btn-primary" id="modalDownload">Download</button>
       </div>
     </div>

@@ -35,6 +35,12 @@ const selectAll        = $('selectAll');
 const downloadBtn      = $('downloadBtn');
 const downloadLabel    = $('downloadLabel');
 const copyUrlsBtn      = $('copyUrlsBtn');
+const exportCsvBtn     = $('exportCsvBtn');
+const bulkConvertBtn   = $('bulkConvertBtn');
+const optionsToggle    = $('optionsToggle');
+const optionsPanel     = $('optionsPanel');
+const subfolderInput   = $('subfolderInput');
+const renamePatternInput = $('renamePatternInput');
 const viewToggle       = $('viewToggle');
 const refreshBtn       = $('refreshBtn');
 const toast            = $('toast');
@@ -49,8 +55,9 @@ const previewIframe    = $('previewIframe');
 const modalMeta        = $('modalMeta');
 const modalUrl         = $('modalUrl');
 const modalCopy        = $('modalCopy');
-const modalOpenTab     = $('modalOpenTab');
 const modalDownload    = $('modalDownload');
+const modalCopySvg     = $('modalCopySvg');
+const modalConvert     = $('modalConvert');
 
 // Tabs
 const tabImages        = $('tabImages');
@@ -61,6 +68,10 @@ const tabVidCount      = $('tabVidCount');
 // ── Init ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   setupListeners();
+  try {
+    const manifest = chrome.runtime.getManifest();
+    $('aboutAppVer').innerHTML = `Version ${manifest.version} &nbsp;·&nbsp; Manifest V3`;
+  } catch (err) { /* noop fallback */ }
   scanPage();
 });
 
@@ -70,6 +81,16 @@ async function scanPage() {
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab || !tab.id || !tab.url || 
+        tab.url.startsWith('chrome://') || 
+        tab.url.startsWith('chrome-extension://') || 
+        tab.url.startsWith('view-source:') ||
+        tab.url.startsWith('about:') ||
+        tab.url.includes('chromewebstore.google.com')) {
+      showState('empty');
+      return;
+    }
 
     // Inject content script if not already there
     await chrome.scripting.executeScript({
@@ -109,7 +130,7 @@ async function scanPage() {
       showState('empty');
     }
   } catch (err) {
-    console.error('[MEP] scan error:', err);
+    console.warn('[MEP] scan error:', err.message || err);
     showState('empty');
   } finally {
     refreshBtn.classList.remove('spinning');
@@ -240,6 +261,7 @@ function createGridCard(item, idx) {
   const isVideo = currentTab === 'videos';
   const typeLabel = (item.type && item.type !== 'unknown') ? item.type.toUpperCase() : getExt(item.url).toUpperCase();
   const dimText   = (item.width && item.height) ? `${item.width}×${item.height}` : (isVideo ? 'Video' : '');
+  const isSvgCode = !!item.rawSvg;
 
   // Thumbnail selection
   let thumbSrc = item.url;
@@ -262,6 +284,15 @@ function createGridCard(item, idx) {
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5z"/><path d="M19 19H5v2h14v-2z"/></svg>
        </button>`;
 
+  const copySvgBtnHtml = isSvgCode ? `
+    <button class="card-btn svg-btn" title="Copy SVG Code">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"/>
+        <polyline points="8 6 2 12 8 18"/>
+      </svg>
+    </button>
+  ` : '';
+
   card.innerHTML = `
     <img src="${esc(thumbSrc)}" alt="${esc(item.alt || item.title)}" loading="lazy" />
     ${videoOverlay}
@@ -270,8 +301,10 @@ function createGridCard(item, idx) {
     </div>
     <span class="type-badge">${esc(typeLabel)}</span>
     <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
+    <div class="card-alt-badge" title="${esc(item.alt || '(No Alt Text)')}">${esc(item.alt || '(No Alt Text)')}</div>
     <div class="card-btns">
       ${dlBtnHtml}
+      ${copySvgBtnHtml}
       <button class="card-btn cp-btn" title="Copy URL">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>
       </button>
@@ -300,6 +333,12 @@ function createGridCard(item, idx) {
     e.stopPropagation();
     downloadSingle(item.url);
   });
+  if (isSvgCode) {
+    card.querySelector('.svg-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      copyText(item.rawSvg, 'SVG Code copied!');
+    });
+  }
   card.querySelector('.cp-btn').addEventListener('click', e => {
     e.stopPropagation();
     copyText(item.url, 'URL copied!');
@@ -319,6 +358,7 @@ function createListCard(item, idx) {
   const dimText   = (item.width && item.height) ? `${item.width} × ${item.height}px` : (isVideo ? 'Video file' : 'Unknown size');
   const displayName = isVideo ? (item.title || item.url) : item.url;
   const shortName  = displayName.length > 55 ? displayName.substring(0, 52) + '…' : displayName;
+  const isSvgCode = !!item.rawSvg;
 
   let thumbSrc = item.url;
   if (isVideo) {
@@ -329,16 +369,27 @@ function createListCard(item, idx) {
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5z"/><path d="M19 19H5v2h14v-2z"/></svg>
        </button>`;
 
+  const copySvgBtnHtml = isSvgCode ? `
+    <button class="card-btn svg-btn" title="Copy SVG Code">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"/>
+        <polyline points="8 6 2 12 8 18"/>
+      </svg>
+    </button>
+  ` : '';
+
   card.innerHTML = `
     <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
     <img src="${esc(thumbSrc)}" alt="${esc(item.alt || item.title)}" loading="lazy" />
     <div class="list-info">
       <div class="list-url">${esc(shortName)}</div>
       <div class="list-dim">${dimText}</div>
+      <div class="list-alt ${item.alt ? 'has-alt' : 'no-alt'}">Alt: ${esc(item.alt || '(No Alt Text)')}</div>
     </div>
     <span class="type-badge">${esc(typeLabel)}</span>
     <div class="card-btns">
       ${dlBtnHtml}
+      ${copySvgBtnHtml}
       <button class="card-btn cp-btn" title="Copy URL">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>
       </button>
@@ -360,6 +411,12 @@ function createListCard(item, idx) {
     e.stopPropagation();
     downloadSingle(item.url);
   });
+  if (isSvgCode) {
+    card.querySelector('.svg-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      copyText(item.rawSvg, 'SVG Code copied!');
+    });
+  }
   card.querySelector('.cp-btn').addEventListener('click', e => {
     e.stopPropagation();
     copyText(item.url, 'URL copied!');
@@ -469,8 +526,15 @@ function setupListeners() {
     scanPage();
   });
 
+  optionsToggle.addEventListener('click', () => {
+    optionsPanel.classList.toggle('open');
+    optionsToggle.classList.toggle('active');
+  });
+
   downloadBtn.addEventListener('click', handleDownloadAll);
   copyUrlsBtn.addEventListener('click', handleCopyUrls);
+  exportCsvBtn.addEventListener('click', handleExportCsv);
+  bulkConvertBtn.addEventListener('click', handleBulkConvert);
 
   // Modal actions
   modalClose.addEventListener('click', closePreview);
@@ -482,6 +546,15 @@ function setupListeners() {
   });
   modalCopy.addEventListener('click', () => { if (currentPreview) copyText(currentPreview.url, 'URL copied!'); });
   modalOpenTab.addEventListener('click', () => { if (currentPreview) chrome.tabs.create({ url: currentPreview.url }); });
+  modalConvert.addEventListener('click', async () => {
+    if (currentPreview) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const isLocal = tab && tab.url && tab.url.includes('localhost');
+      const baseUrl = isLocal ? 'http://localhost:3000' : 'https://www.unifiedtoolspro.xyz';
+      const targetUrl = `${baseUrl}/tools/image-converter?src=${encodeURIComponent(currentPreview.url)}`;
+      chrome.tabs.create({ url: targetUrl });
+    }
+  });
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -554,15 +627,39 @@ async function handleDownloadAll() {
 
   if (!toDownload.length) { showToast('No download-eligible media', 'err'); return; }
 
-  showToast(`Downloading ${toDownload.length} item${toDownload.length !== 1 ? 's' : ''}…`, 'ok');
+  showProgressToast(0, toDownload.length);
 
   for (let i = 0; i < toDownload.length; i++) {
-    await downloadSingle(toDownload[i].url);
+    await downloadSingle(toDownload[i].url, i + 1);
+    showProgressToast(i + 1, toDownload.length);
     if (i < toDownload.length - 1) await sleep(300); // delay to prevent download rate limiting
   }
 }
 
-async function downloadSingle(url) {
+function showProgressToast(current, total) {
+  const percent = Math.round((current / total) * 100);
+  let msg = `Downloading: ${current} / ${total} items (${percent}%)`;
+  if (current === total) {
+    msg = `🎉 Successfully downloaded all ${total} items!`;
+    showToast(msg, 'ok');
+  } else {
+    toast.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px; width:100%; text-align:left;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
+          <span>⏳ Downloading...</span>
+          <span>${current}/${total} (${percent}%)</span>
+        </div>
+        <div style="width:100%; height:4px; background:rgba(255,255,255,0.2); border-radius:2px; overflow:hidden;">
+          <div style="width:${percent}%; height:100%; background:#fff; transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+    `;
+    toast.className = 'toast show';
+    clearTimeout(toastTimer);
+  }
+}
+
+async function downloadSingle(url, index = 1) {
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
   const isVimeo = url.includes('vimeo.com');
 
@@ -582,7 +679,25 @@ async function downloadSingle(url) {
   }
 
   // Direct video/image files (MP4, WebM, JPG, PNG etc.)
-  const filename = `media-extractor-pro/${getFilename(url)}`;
+  const subfolder = subfolderInput?.value.trim() || 'media-extractor-pro';
+  const renamePattern = renamePatternInput?.value.trim() || '';
+  
+  let originalFilename = getFilename(url);
+  let ext = getExt(url);
+  if (ext === 'unknown') ext = 'png'; // fallback
+  
+  let finalFilename = originalFilename;
+  if (renamePattern) {
+    let formattedPattern = renamePattern;
+    if (formattedPattern.includes('[index]')) {
+      formattedPattern = formattedPattern.replace(/\[index\]/g, String(index));
+    } else {
+      formattedPattern = `${formattedPattern}-${index}`;
+    }
+    finalFilename = `${formattedPattern}.${ext}`;
+  }
+
+  const filename = `${subfolder}/${finalFilename}`;
   try {
     await chrome.runtime.sendMessage({ action: 'downloadImage', url, filename });
   } catch {
@@ -598,6 +713,70 @@ function handleCopyUrls() {
 
   if (!urls.length) { showToast('No media to copy', 'err'); return; }
   copyText(urls.join('\n'), `${urls.length} link${urls.length !== 1 ? 's' : ''} copied!`);
+}
+
+// ── CSV Export ────────────────────────────────
+function handleExportCsv() {
+  const toExport = selected.size > 0
+    ? filteredMedia.filter(i => selected.has(i.url))
+    : filteredMedia;
+
+  if (!toExport.length) { showToast('No media to export', 'err'); return; }
+
+  // CSV Headers: URL, Type, Width, Height, Alt Text/Title
+  let csvContent = "data:text/csv;charset=utf-8,";
+  csvContent += "URL,Type,Width,Height,Alt Text / Title\n";
+
+  toExport.forEach(item => {
+    const url = item.url.replace(/"/g, '""');
+    const type = (item.type || getExt(item.url)).toUpperCase();
+    const width = item.width || "";
+    const height = item.height || "";
+    const alt = (item.alt || item.title || "").replace(/"/g, '""');
+    
+    csvContent += `"${url}","${type}","${width}","${height}","${alt}"\n`;
+  });
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `extracted-media-${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast(`${toExport.length} items exported to CSV!`, 'ok');
+}
+
+// ── Bulk Convert Handling ──────────────────────
+async function handleBulkConvert() {
+  const toConvert = selected.size > 0
+    ? filteredMedia.filter(i => selected.has(i.url))
+    : filteredMedia;
+
+  if (!toConvert.length) { showToast('No images to convert', 'err'); return; }
+
+  // Filter only images (exclude videos/unknowns)
+  const imageItems = toConvert.filter(i => {
+    const ext = i.type || getExt(i.url);
+    return imageExts.includes(ext);
+  });
+
+  if (!imageItems.length) { showToast('No eligible images selected', 'err'); return; }
+
+  showToast(`Sending ${imageItems.length} images to converter...`, 'ok');
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const isLocal = tab && tab.url && tab.url.includes('localhost');
+  const baseUrl = isLocal ? 'http://localhost:3000' : 'https://www.unifiedtoolspro.xyz';
+  
+  let queryString = `?`;
+  imageItems.forEach((item, idx) => {
+    if (idx > 0) queryString += `&`;
+    queryString += `src=${encodeURIComponent(item.url)}`;
+  });
+  
+  const targetUrl = `${baseUrl}/tools/image-converter${queryString}`;
+  chrome.tabs.create({ url: targetUrl });
 }
 
 function copyText(text, msg) {
@@ -672,10 +851,21 @@ function openPreview(item) {
   modalDownload.textContent = isVideo ? 'Download MP4' : 'Download';
   modalOpenTab.style.display = '';
 
+  if (item.rawSvg) {
+    modalCopySvg.style.display = '';
+    modalCopySvg.onclick = () => copyText(item.rawSvg, 'SVG Code copied!');
+  } else {
+    modalCopySvg.style.display = 'none';
+  }
+
   modalMeta.innerHTML = `
     <span class="meta-pill">🏷️ ${esc(typeLabel)}</span>
     ${dimText ? `<span class="meta-pill">📐 ${dimText}</span>` : ''}
     <span class="meta-pill">🔗 ${esc(item.source || 'source')}</span>
+    <div class="meta-alt-pill ${item.alt ? 'has-alt' : 'no-alt'}">
+      <span>📝 Alt:</span>
+      <strong>${esc(item.alt || '(No Alt Text)')}</strong>
+    </div>
   `;
   modalUrl.textContent = item.url;
   modal.classList.add('open');
@@ -683,6 +873,7 @@ function openPreview(item) {
 
 function closePreview() {
   modal.classList.remove('open');
+  modalCopySvg.onclick = null;
   
   // Clear/Pause src attributes to stop background sounds
   previewImg.src = '';
