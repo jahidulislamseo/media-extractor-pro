@@ -2,6 +2,8 @@
 
 A premium Chrome Extension built with Manifest V3 to extract, preview, filter, and download all images and videos from any webpage instantly. Highly integrated with the UnifiedTools Pro website converter.
 
+[![Available in the Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.1.0-blue.svg?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
+
 ![Media Extractor Pro Icon](icons/icon128.png)
 
 ## Features
