@@ -79,6 +79,24 @@ async function scanPage() {
   showState('loading');
   refreshBtn.classList.add('spinning');
 
+  // Streaming/DRM platforms — extraction not supported
+  const BLOCKED_DOMAINS = [
+    'youtube.com', 'youtu.be', 'youtube-nocookie.com',
+    'netflix.com', 'primevideo.com', 'disneyplus.com',
+    'hulu.com', 'hbomax.com', 'max.com', 'peacocktv.com',
+    'paramountplus.com', 'espn.com', 'twitch.tv',
+    'spotify.com', 'tidal.com', 'deezer.com',
+    'soundcloud.com', 'vimeo.com', 'dailymotion.com',
+    'bilibili.com', 'crunchyroll.com', 'funimation.com'
+  ];
+
+  function isBlockedUrl(url) {
+    try {
+      const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+      return BLOCKED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+    } catch { return false; }
+  }
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -111,6 +129,9 @@ async function scanPage() {
       allImages = resp.images || [];
       allVideos = resp.videos || [];
 
+      // Apply download restriction for streaming platforms (e.g. YouTube)
+      setDownloadRestricted(!!resp.downloadRestricted);
+
       // Update badge count
       chrome.runtime.sendMessage({
         action: 'updateBadge',
@@ -136,6 +157,57 @@ async function scanPage() {
     refreshBtn.classList.remove('spinning');
   }
 }
+
+// ── Download Restriction (streaming platforms) ─
+let downloadIsRestricted = false;
+
+function setDownloadRestricted(restricted) {
+  downloadIsRestricted = restricted;
+
+  // Show/hide restriction notice banner
+  let banner = document.getElementById('restrictedBanner');
+  if (restricted) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'restrictedBanner';
+      banner.style.cssText = [
+        'background: linear-gradient(135deg, #f59e0b, #d97706)',
+        'color: #fff',
+        'font-size: 11px',
+        'font-weight: 600',
+        'padding: 7px 12px',
+        'text-align: center',
+        'display: flex',
+        'align-items: center',
+        'justify-content: center',
+        'gap: 6px',
+        'border-radius: 6px',
+        'margin: 8px 12px 0',
+        'letter-spacing: 0.01em'
+      ].join(';');
+      banner.innerHTML = '⚠️ Downloads disabled on this platform (Terms of Service)';
+      // Insert before gallery
+      gallery.parentNode.insertBefore(banner, gallery);
+    }
+    banner.style.display = 'flex';
+
+    // Disable all download/copy action buttons
+    downloadBtn.disabled = true;
+    downloadBtn.style.opacity = '0.4';
+    downloadBtn.title = 'Downloads not available on streaming platforms';
+    copyUrlsBtn.disabled = true;
+    copyUrlsBtn.style.opacity = '0.4';
+    exportCsvBtn.disabled = false; // CSV export (URL list) is still OK
+  } else {
+    if (banner) banner.style.display = 'none';
+    downloadBtn.disabled = false;
+    downloadBtn.style.opacity = '';
+    downloadBtn.title = '';
+    copyUrlsBtn.disabled = false;
+    copyUrlsBtn.style.opacity = '';
+  }
+}
+
 
 // ── Tab Count Badges ─────────────────────────
 function updateTabCounts() {
@@ -202,8 +274,6 @@ function applyFilters(silent = false) {
     if (activeVidType !== 'all') {
       result = result.filter(v => {
         const ext = v.type || getExt(v.url);
-        if (activeVidType === 'youtube') return ext === 'youtube';
-        if (activeVidType === 'vimeo') return ext === 'vimeo';
         return ext === activeVidType;
       });
     }
@@ -266,10 +336,7 @@ function createGridCard(item, idx) {
   // Thumbnail selection
   let thumbSrc = item.url;
   if (isVideo) {
-    thumbSrc = item.thumbnail || 'https://vimeo.com/assets/images/favicon.ico'; // default placeholder
-    if (item.type === 'youtube' && item.thumbnail) {
-      thumbSrc = item.thumbnail;
-    }
+    thumbSrc = item.thumbnail || '../icons/icon128.png'; // default placeholder
   }
 
   // Play button indicator for video grid items
@@ -329,8 +396,19 @@ function createGridCard(item, idx) {
     e.stopPropagation();
     toggleSelect(item.url, card, card.querySelector('.card-cb'));
   });
-  card.querySelector('.dl-btn').addEventListener('click', e => {
+  // Disable download button on restricted platforms
+  const dlBtn = card.querySelector('.dl-btn');
+  if (downloadIsRestricted) {
+    dlBtn.disabled = true;
+    dlBtn.style.opacity = '0.35';
+    dlBtn.title = 'Download disabled (Terms of Service)';
+  }
+  dlBtn.addEventListener('click', e => {
     e.stopPropagation();
+    if (downloadIsRestricted) {
+      showToast('Downloads not allowed on this platform', 'err');
+      return;
+    }
     downloadSingle(item.url);
   });
   if (isSvgCode) {
@@ -660,24 +738,6 @@ function showProgressToast(current, total) {
 }
 
 async function downloadSingle(url, index = 1) {
-  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-  const isVimeo = url.includes('vimeo.com');
-
-  if (isYouTube) {
-    showToast('Opening YouTube MP4 Downloader...', 'ok');
-    const ytId = getYouTubeId(url);
-    const downloadUrl = `https://www.ssyoutube.com/watch?v=${ytId}`;
-    chrome.tabs.create({ url: downloadUrl });
-    return;
-  }
-
-  if (isVimeo) {
-    showToast('Opening Vimeo MP4 Downloader...', 'ok');
-    const downloadUrl = `https://vimeodownloader.one/?url=${encodeURIComponent(url)}`;
-    chrome.tabs.create({ url: downloadUrl });
-    return;
-  }
-
   // Direct video/image files (MP4, WebM, JPG, PNG etc.)
   const subfolder = subfolderInput?.value.trim() || 'media-extractor-pro';
   const renamePattern = renamePatternInput?.value.trim() || '';
@@ -806,40 +866,11 @@ function openPreview(item) {
 
   // Render correct media element inside preview modal
   if (isVideo) {
-    if (item.type === 'youtube') {
-      // Show HD thumbnail + play overlay (iframe blocked by YouTube in extensions)
-      const ytId = getYouTubeId(item.url);
-      const thumbUrl = item.thumbnail || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-      previewImg.src = thumbUrl;
-      previewImg.style.display = '';
-      previewImg.style.cursor = 'pointer';
-      previewImg.title = 'Click to watch on YouTube';
-      previewImg.onclick = () => chrome.tabs.create({ url: item.url });
-      // Show play overlay badge
-      const wrap = previewImg.closest('.modal-img-wrap');
-      wrap.classList.add('yt-thumb-wrap');
-    } else if (item.type === 'vimeo') {
-      // Show Vimeo thumbnail + play overlay
-      const thumbUrl = item.thumbnail || '';
-      if (thumbUrl) {
-        previewImg.src = thumbUrl;
-        previewImg.style.display = '';
-        previewImg.style.cursor = 'pointer';
-        previewImg.title = 'Click to watch on Vimeo';
-        previewImg.onclick = () => chrome.tabs.create({ url: item.url });
-        const wrap = previewImg.closest('.modal-img-wrap');
-        wrap.classList.add('yt-thumb-wrap');
-      } else {
-        previewIframe.src = `https://player.vimeo.com/video/${getVimeoId(item.url)}`;
-        previewIframe.style.display = '';
-      }
-    } else {
-      // Standard video file
-      previewVideo.src = item.url;
-      previewVideo.style.display = '';
-      previewVideo.load();
-      previewVideo.play().catch(() => {});
-    }
+    // Standard video file
+    previewVideo.src = item.url;
+    previewVideo.style.display = '';
+    previewVideo.load();
+    previewVideo.play().catch(() => {});
   } else {
     // Image element
     previewImg.src = item.url;
@@ -915,17 +946,7 @@ function getExt(url) {
   } catch { return 'unknown'; }
 }
 
-function getYouTubeId(url) {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
-}
 
-function getVimeoId(url) {
-  const regExp = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/;
-  const match = url.match(regExp);
-  return match ? match[3] : null;
-}
 
 function esc(str) {
   if (!str) return '';

@@ -1,10 +1,31 @@
 // =============================================
-// Media Extractor Pro - Content Script
-// Runs in the context of the web page
+// Image & Video Extractor - Content Script
+// Extracts standard HTML media elements only.
+// On streaming/DRM platforms: media is shown
+// for reference only — downloads are disabled.
 // =============================================
 
 (function () {
   'use strict';
+
+  // ─── Download-Restricted Domains ─────────────
+  // On these platforms, media elements are shown
+  // (e.g. thumbnails) but downloading is blocked.
+  // This complies with their Terms of Service.
+  const DOWNLOAD_RESTRICTED_DOMAINS = [
+    'youtube.com', 'youtu.be', 'youtube-nocookie.com',
+    'netflix.com', 'primevideo.com', 'disneyplus.com',
+    'hulu.com', 'hbomax.com', 'max.com', 'peacocktv.com',
+    'paramountplus.com', 'espn.com', 'twitch.tv',
+    'spotify.com', 'tidal.com', 'deezer.com',
+    'soundcloud.com', 'vimeo.com', 'dailymotion.com',
+    'bilibili.com', 'crunchyroll.com', 'funimation.com'
+  ];
+
+  const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+  const isDownloadRestricted = DOWNLOAD_RESTRICTED_DOMAINS.some(
+    d => currentHost === d || currentHost.endsWith('.' + d)
+  );
 
   // Prevent double injection
   if (window.__mediaExtractorProInjected) return;
@@ -44,19 +65,7 @@
     }
   }
 
-  function getYouTubeId(url) {
-    if (!url) return null;
-    const cleanUrl = url.startsWith('/') ? 'https://www.youtube.com' + url : url;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-    const match = cleanUrl.match(regExp);
-    return (match && match[2] && match[2].length === 11) ? match[2] : null;
-  }
 
-  function getVimeoId(url) {
-    const regExp = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/;
-    const match = url.match(regExp);
-    return match ? match[3] : null;
-  }
 
   // ─── Image Extractor ───────────────────────
   function extractImages() {
@@ -209,89 +218,98 @@
       });
     });
 
-    // 2. Scrape all <a> links for video files & YouTube video links
+    // 2. Scrape all <a> links for direct video files
     document.querySelectorAll('a[href]').forEach(a => {
       const href = a.getAttribute('href') || '';
       if (!href) return;
-
-      // Check for direct video file links
       if (new RegExp(`\\.(${videoExts.join('|')})(\\?|$)`, 'i').test(href)) {
         const resolved = resolveUrl(href);
         if (resolved) {
           addVideo(resolved, { source: 'link', title: a.textContent.trim() });
         }
-        return;
-      }
-
-      // Check for YouTube links (homepage, watch page, search results, etc.)
-      const ytId = getYouTubeId(href);
-      if (ytId) {
-        let title = '';
-        
-        // Find title container on YouTube desktop layout
-        const titleEl = a.closest('ytd-rich-grid-media, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer')
-          ?.querySelector('#video-title, #video-title-link, .title');
-          
-        if (titleEl) {
-          title = titleEl.textContent.trim();
-        } else {
-          title = a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent.trim();
-        }
-
-        // Clean duration metadata/channel tags sometimes appended in text
-        if (title) {
-          title = title.replace(/\s*by\s+.*$/i, '').replace(/\n/g, ' ').replace(/\s{2,}/g, ' ').trim();
-        }
-
-        addVideo(`https://www.youtube.com/watch?v=${ytId}`, {
-          source: 'youtube-link',
-          type: 'youtube',
-          thumbnail: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
-          title: title || 'YouTube Video'
-        });
       }
     });
 
-    // 3. <iframe> embeds (YouTube / Vimeo)
-    document.querySelectorAll('iframe').forEach(iframe => {
-      const src = iframe.src || iframe.getAttribute('data-src') || '';
-      if (!src) return;
+    // 3. Universal YouTube link scanner (works on any page)
+    // Scans ALL anchor tags for YouTube watch links.
+    // Works on YouTube home, Google Search, blogs, any site.
+    document.querySelectorAll('a[href]').forEach(a => {
+      try {
+        const href = a.getAttribute('href') || '';
+        if (!href) return;
 
-      const ytId = getYouTubeId(src);
-      if (ytId) {
-        addVideo(`https://www.youtube.com/watch?v=${ytId}`, {
-          source: 'youtube-embed',
+        const ytMatch =
+          href.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/) ||
+          href.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+        if (!ytMatch) return;
+
+        const videoId = ytMatch[1];
+        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        if (map.has(watchUrl)) return;
+
+        const titleEl = a.querySelector('h3, [id*="title"], [class*="title"]');
+        const title =
+          a.getAttribute('title') ||
+          a.getAttribute('aria-label') ||
+          (titleEl ? titleEl.textContent.trim() : '') ||
+          a.textContent.trim().substring(0, 100) ||
+          'YouTube Video';
+
+        const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+        map.set(watchUrl, {
+          url: watchUrl,
+          title,
+          thumbnail,
           type: 'youtube',
-          thumbnail: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
-          title: iframe.title || 'YouTube Video'
+          width: 0,
+          height: 0,
+          source: 'yt-link',
         });
-        return;
-      }
-
-      const vimId = getVimeoId(src);
-      if (vimId) {
-        addVideo(`https://vimeo.com/${vimId}`, {
-          source: 'vimeo-embed',
-          type: 'vimeo',
-          thumbnail: 'https://vimeo.com/assets/images/favicon.ico',
-          title: iframe.title || 'Vimeo Video'
-        });
-      }
+      } catch { /* skip */ }
     });
 
-    // 4. Current page check (if browsing watch page directly)
-    const currentYt = getYouTubeId(window.location.href);
-    if (currentYt) {
-      addVideo(`https://www.youtube.com/watch?v=${currentYt}`, {
-        source: 'current-page',
-        type: 'youtube',
-        thumbnail: `https://img.youtube.com/vi/${currentYt}/hqdefault.jpg`,
-        title: document.title.replace('- YouTube', '').trim()
+    // 4. YouTube custom elements (ytd-*) — home feed only
+    if (currentHost === 'youtube.com' || currentHost.endsWith('.youtube.com')) {
+      const cardSelectors = [
+        'ytd-rich-item-renderer',
+        'ytd-video-renderer',
+        'ytd-compact-video-renderer',
+        'ytd-grid-video-renderer',
+        'ytd-playlist-video-renderer'
+      ];
+      document.querySelectorAll(cardSelectors.join(',')).forEach(card => {
+        try {
+          const data = card.data || card.__data || {};
+          const videoId =
+            data?.videoId ||
+            card.querySelector('a[href*="watch"]')?.getAttribute('href')?.match(/v=([a-zA-Z0-9_-]{11})/)?.[1];
+          if (!videoId) return;
+
+          const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+          if (map.has(watchUrl)) return;
+
+          const titleEl = card.querySelector('#video-title, #video-title-link, h3 a');
+          const title = titleEl
+            ? (titleEl.getAttribute('title') || titleEl.textContent.trim())
+            : data?.title?.runs?.[0]?.text || 'YouTube Video';
+
+          map.set(watchUrl, {
+            url: watchUrl,
+            title,
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+            type: 'youtube',
+            width: 0,
+            height: 0,
+            source: 'ytd-card',
+          });
+        } catch { /* skip */ }
       });
     }
 
     return Array.from(map.values());
   }
+
 
   // ─── Message Listener ─────────────────────
   chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
@@ -302,6 +320,7 @@
         sendResponse({
           images,
           videos,
+          downloadRestricted: isDownloadRestricted, // true on YouTube/streaming sites
           pageUrl: window.location.href,
           pageTitle: document.title,
           timestamp: Date.now()

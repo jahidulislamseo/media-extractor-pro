@@ -16,7 +16,7 @@ A premium Chrome Extension built with Manifest V3 to extract, preview, filter, a
 
 ### 🎥 Video Extraction
 - **HTML5 Video Player Detector:** Scans `<video>` tags and their `<source>` children to extract direct video files (MP4, WebM, OGV, etc.).
-- **Embed Video Scraper:** Detects YouTube and Vimeo iframes, extracts video links, and fetches video thumbnails automatically.
+- **Video Scraper:** Detects standard HTML5 video elements and video file sources.
 - **Video Formats Supported:** MP4, WEBM, OGV, MOV, M4V, 3GP, AVI, FLV, MKV.
 
 ### 📊 SEO Alt-Text Audit & CSV Export (New)
@@ -66,7 +66,7 @@ image-extractor-pro/
 3. Toggle the **Developer mode** switch (top-right corner) to **ON**.
 4. Click the **"Load unpacked"** button (top-left).
 5. Select this `image-extractor-pro` folder.
-6. The extension is now ready! Pin it to your Chrome toolbar and test on any site (e.g. YouTube, Vimeo, Unsplash).
+6. The extension is now ready! Pin it to your Chrome toolbar and test on any site (e.g. Unsplash, Wikipedia).
 
 ---
 

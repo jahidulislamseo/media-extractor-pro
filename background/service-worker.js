@@ -1,7 +1,29 @@
 // =============================================
-// Media Extractor Pro — Service Worker (ES Module)
+// Image & Video Extractor — Service Worker (ES Module)
 // Manifest V3 | Production Ready
+// Only processes standard HTML pages.
+// Does NOT interact with streaming services.
 // =============================================
+
+// ── Blocked Streaming / DRM Domains ───────────
+const BLOCKED_DOMAINS = [
+  'youtube.com', 'youtu.be', 'youtube-nocookie.com',
+  'netflix.com', 'primevideo.com', 'disneyplus.com',
+  'hulu.com', 'hbomax.com', 'max.com', 'peacocktv.com',
+  'paramountplus.com', 'espn.com', 'twitch.tv',
+  'spotify.com', 'tidal.com', 'deezer.com',
+  'soundcloud.com', 'vimeo.com', 'dailymotion.com',
+  'bilibili.com', 'crunchyroll.com', 'funimation.com'
+];
+
+function isBlockedUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return BLOCKED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+  } catch {
+    return false;
+  }
+}
 
 // ── Badge Helper ──────────────────────────────
 function setBadge(count, tabId) {
@@ -42,6 +64,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
   if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
+
+  // Do not inject into streaming/DRM platforms
+  if (isBlockedUrl(tab.url)) {
+    setBadge(0, tabId);
+    return;
+  }
 
   try {
     await chrome.scripting.executeScript({

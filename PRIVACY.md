@@ -12,7 +12,7 @@ Media Extractor Pro ("we", "our", or "us") is committed to protecting your priva
 
 ## 2. Permissions Required and Justification
 
-- `activeTab`: Used to access the DOM of the currently active tab to find media elements (e.g., `<img>` tags, `<video>` tags, CSS backgrounds, YouTube/Vimeo embeds).
+- `activeTab`: Used to access the DOM of the currently active tab to find media elements (e.g., `<img>` tags, `<video>` tags, CSS backgrounds, and embedded media elements).
 - `scripting`: Used to inject the extraction script into the active page when you request a scan.
 - `downloads`: Used to download the extracted media files directly to your local default download folder.
 - `tabs`: Used to open media in new tabs for preview purposes.
