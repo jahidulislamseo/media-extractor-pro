@@ -1,9 +1,10 @@
 # Media Extractor Pro — Chrome Extension (v2.0.0)
 
-[![⬇️ Download ZIP (v2.0.0)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v2.0.0-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)
+[![Downloads](https://img.shields.io/github/downloads/jahidulislamseo/media-extractor-pro/total?style=for-the-badge&logo=github&color=2ea44f&label=Downloads)](https://github.com/jahidulislamseo/media-extractor-pro/releases)
+[![⬇️ Download ZIP (v2.0.0)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v2.0.0-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/releases/download/v2.0.0/media-extractor-pro-v2.0.0.zip)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v2.0.0-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
 
-> 🚀 **Direct Download:** **[👉 Click Here to Download Extension ZIP (v2.0.0)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)**  
+> 🚀 **Direct Download:** **[👉 Click Here to Download Extension ZIP (v2.0.0)](https://github.com/jahidulislamseo/media-extractor-pro/releases/download/v2.0.0/media-extractor-pro-v2.0.0.zip)**  
 > *Unzip the file → Go to `chrome://extensions` → Turn on **Developer mode** → Click **Load unpacked** and select the folder.*
 
 A high-performance Chrome Extension built with Manifest V3 to extract, preview, filter, and download images, videos, and audio tracks from any webpage instantly. Includes built-in offline ZIP archiving, deep feed auto-scrolling, and canvas format conversion.
@@ -51,15 +52,14 @@ You do **not** need Node.js or any build tools to use this extension. It runs na
 
 ### Method 1: Download ZIP (Easiest)
 
-1. Click the green **`<> Code`** button at the top of this GitHub repository.
-2. Select **"Download ZIP"** (or [click here to download](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)).
-3. Extract (unzip) the downloaded file on your computer. You will get a folder named `media-extractor-pro-master`.
-4. Open Google Chrome (or Edge / Brave / Opera).
-5. In the address bar, type **`chrome://extensions`** and press **Enter**.
-6. Turn **ON** the **"Developer mode"** toggle in the top-right corner.
-7. Click the **"Load unpacked"** button in the top-left corner.
-8. Select the unzipped `media-extractor-pro-master` folder (the folder containing `manifest.json`).
-9. Done! The extension icon will appear in your browser toolbar. Click the puzzle icon 🧩 and pin **Media Extractor Pro** for quick access.
+1. [Click here to download the extension package (v2.0.0 ZIP)](https://github.com/jahidulislamseo/media-extractor-pro/releases/download/v2.0.0/media-extractor-pro-v2.0.0.zip) (or grab it from the [Releases page](https://github.com/jahidulislamseo/media-extractor-pro/releases)).
+2. Extract (unzip) the downloaded file on your computer. You will get the extension files.
+3. Open Google Chrome (or Edge / Brave / Opera).
+4. In the address bar, type **`chrome://extensions`** and press **Enter**.
+5. Turn **ON** the **"Developer mode"** toggle in the top-right corner.
+6. Click the **"Load unpacked"** button in the top-left corner.
+7. Select the unzipped folder (the folder containing `manifest.json`).
+8. Done! The extension icon will appear in your browser toolbar. Click the puzzle icon 🧩 and pin **Media Extractor Pro** for quick access.
 
 ### Method 2: Git Clone
 
