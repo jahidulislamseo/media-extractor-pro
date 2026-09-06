@@ -815,13 +815,47 @@ function showProgressToast(current, total) {
   }
 }
 
+function getPinterestAlternativeUrls(url) {
+  if (!url || !url.includes('pinimg.com/videos')) return [];
+  const hashMatch = url.match(/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{32})/i);
+  if (!hashMatch) return [];
+  const [, p1, p2, p3, hash] = hashMatch;
+  const isIht = url.includes('/iht/');
+  return isIht ? [
+    `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
+    `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
+    `https://v.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`
+  ] : [
+    `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
+    `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
+    `https://v.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`
+  ];
+}
+
 async function downloadSingle(url, index = 1) {
   // Direct video/image files (MP4, WebM, JPG, PNG etc.)
   const subfolder = subfolderInput?.value.trim() || 'media-extractor-pro';
   const renamePattern = renamePatternInput?.value.trim() || '';
   
-  let originalFilename = getFilename(url);
-  let ext = getExt(url);
+  let downloadUrl = url;
+  if (url.includes('pinimg.com/videos')) {
+    const alts = getPinterestAlternativeUrls(url);
+    for (const alt of alts) {
+      try {
+        const resp = await fetch(alt, { method: 'HEAD' });
+        const ctype = resp.headers.get('content-type') || '';
+        if (resp.ok && (ctype.includes('video') || ctype.includes('octet-stream') || !ctype.includes('xml'))) {
+          downloadUrl = alt;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  let originalFilename = getFilename(downloadUrl);
+  let ext = getExt(downloadUrl);
   if (currentTab === 'videos') {
     if (ext === 'unknown' || ext === 'png' || ext === 'cmfv' || ext === 'bin') ext = 'mp4';
     originalFilename = originalFilename.replace(/\.(cmfv|cmfa|bin|unknown)$/i, '.mp4');
@@ -845,9 +879,9 @@ async function downloadSingle(url, index = 1) {
 
   const filename = `${subfolder}/${finalFilename}`;
   try {
-    await chrome.runtime.sendMessage({ action: 'downloadImage', url, filename });
+    await chrome.runtime.sendMessage({ action: 'downloadImage', url: downloadUrl, filename });
   } catch {
-    chrome.tabs.create({ url }); // fallback
+    chrome.tabs.create({ url: downloadUrl }); // fallback
   }
 }
 
@@ -957,6 +991,23 @@ function openPreview(item) {
     previewVideo.style.display = '';
     previewVideo.load();
     previewVideo.play().catch(() => {});
+
+    // Fallback if video fails to load due to 403 Forbidden
+    previewVideo.onerror = function () {
+      if (item.url.includes('pinimg.com/videos')) {
+        const alts = getPinterestAlternativeUrls(item.url);
+        const currentSrc = previewVideo.currentSrc || previewVideo.src;
+        const currentIdx = alts.indexOf(currentSrc);
+        const nextUrl = alts[currentIdx + 1];
+        if (nextUrl) {
+          previewVideo.src = nextUrl;
+          item.url = nextUrl;
+          modalUrl.textContent = nextUrl;
+          previewVideo.load();
+          previewVideo.play().catch(() => {});
+        }
+      }
+    };
   } else {
     // Image element
     previewImg.src = item.url;

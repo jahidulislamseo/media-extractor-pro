@@ -36,6 +36,38 @@ function setBadge(count, tabId) {
   chrome.action.setBadgeText(textOpts).catch(() => {});
 }
 
+// ── Pinterest Live Download URL Validator ─────
+async function resolveValidPinterestDownloadUrl(url) {
+  if (!url || !url.includes('pinimg.com/videos')) return url;
+  const hashMatch = url.match(/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{32})/i);
+  if (!hashMatch) return url;
+  const [, p1, p2, p3, hash] = hashMatch;
+
+  const isIht = url.includes('/iht/');
+  const candidates = isIht ? [
+    `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
+    `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
+    `https://v.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`
+  ] : [
+    `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
+    `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
+    `https://v.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const resp = await fetch(candidate, { method: 'HEAD' });
+      const ctype = resp.headers.get('content-type') || '';
+      if (resp.ok && (ctype.includes('video') || ctype.includes('octet-stream') || !ctype.includes('xml'))) {
+        return candidate;
+      }
+    } catch {}
+  }
+  return url;
+}
+
 // ── Message Handler ───────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const tabId = sender.tab?.id;
@@ -46,15 +78,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'downloadImage') {
-    const { url, filename, saveAs = false } = request;
+    let { url, filename, saveAs = false } = request;
     if (!url) return false;
 
-    chrome.downloads.download({
-      url,
-      filename: filename || `media-extractor-pro/file_${Date.now()}`,
-      saveAs,
-      conflictAction: 'uniquify',
-    }).catch(err => console.warn('[MEP] download error:', err));
+    (async () => {
+      try {
+        if (url.includes('pinimg.com/videos')) {
+          url = await resolveValidPinterestDownloadUrl(url);
+        }
+        await chrome.downloads.download({
+          url,
+          filename: filename || `media-extractor-pro/file_${Date.now()}`,
+          saveAs,
+          conflictAction: 'uniquify',
+        });
+      } catch (err) {
+        console.warn('[MEP] download error:', err);
+      }
+    })();
 
     return false;
   }

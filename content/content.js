@@ -184,25 +184,41 @@
     if (!url) return null;
     const str = String(url).replace(/\\/g, '');
     if (!str.includes('pinimg.com') && !currentHost.includes('pinterest.')) return null;
+    const isIht = str.includes('/iht/');
     const m = str.match(/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{2})\/([0-9a-f]{32})/i);
     if (m) {
       const hash = m[4].toLowerCase();
+      const p1 = m[1], p2 = m[2], p3 = m[3];
+      const mp4Url = isIht
+        ? `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`
+        : `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`;
+      const fallbackMp4 = isIht
+        ? `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`
+        : `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`;
       return {
         hash,
-        mp4Url: `https://v1.pinimg.com/videos/mc/720p/${m[1]}/${m[2]}/${m[3]}/${hash}.mp4`,
-        fallbackMp4: `https://v1.pinimg.com/videos/mc/expMp4/${m[1]}/${m[2]}/${m[3]}/${hash}_t1.mp4`,
-        thumbUrl: `https://i.pinimg.com/videos/thumbnails/originals/${m[1]}/${m[2]}/${m[3]}/${hash}.0000001.jpg`
+        isIht,
+        mp4Url,
+        fallbackMp4,
+        thumbUrl: `https://i.pinimg.com/videos/thumbnails/originals/${p1}/${p2}/${p3}/${hash}.0000001.jpg`
       };
     }
     const m2 = str.match(/([0-9a-f]{32})/i);
     if (m2) {
-      const h = m2[1].toLowerCase();
-      const p1 = h.slice(0, 2), p2 = h.slice(2, 4), p3 = h.slice(4, 6);
+      const hash = m2[1].toLowerCase();
+      const p1 = hash.slice(0, 2), p2 = hash.slice(2, 4), p3 = hash.slice(4, 6);
+      const mp4Url = isIht
+        ? `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`
+        : `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`;
+      const fallbackMp4 = isIht
+        ? `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`
+        : `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`;
       return {
-        hash: h,
-        mp4Url: `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${h}.mp4`,
-        fallbackMp4: `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${h}_t1.mp4`,
-        thumbUrl: `https://i.pinimg.com/videos/thumbnails/originals/${p1}/${p2}/${p3}/${h}.0000001.jpg`
+        hash,
+        isIht,
+        mp4Url,
+        fallbackMp4,
+        thumbUrl: `https://i.pinimg.com/videos/thumbnails/originals/${p1}/${p2}/${p3}/${hash}.0000001.jpg`
       };
     }
     return null;
