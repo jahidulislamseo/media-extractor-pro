@@ -187,7 +187,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     chrome.tabs.sendMessage(tabId, { action: 'extractMedia' }, res => {
       if (chrome.runtime.lastError) return;
       if (res) {
-        const count = (res.images?.length || 0) + (res.videos?.length || 0);
+        const count = (res.images?.length || 0) + (res.videos?.length || 0) + (res.audios?.length || 0);
         setBadge(count, tabId);
       }
     });

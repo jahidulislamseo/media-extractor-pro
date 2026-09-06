@@ -1081,6 +1081,9 @@ async function downloadSingle(url, index = 1) {
   } else if (currentTab === 'audios') {
     if (ext === 'unknown' || ext === 'bin') ext = 'mp3';
     originalFilename = originalFilename.replace(/\.(bin|unknown)$/i, '.mp3');
+    if (!audioExts.some(ae => originalFilename.toLowerCase().endsWith('.' + ae))) {
+      originalFilename += '.' + ext;
+    }
   } else {
     if (ext === 'unknown') ext = 'png';
   }

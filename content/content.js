@@ -251,26 +251,100 @@
     return Array.from(map.values());
   }
 
+  // ─── Audio URL Classifier ─────────────────
+  function isAudioUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.replace(/\\\//g, '/').replace(/\\/g, '').trim();
+    if (!clean || clean.startsWith('data:') || clean.startsWith('javascript:') || clean.startsWith('blob:')) return false;
+
+    const noQuery = clean.split('?')[0].split('#')[0].toLowerCase();
+
+    // Reject static images, stylesheets, scripts, and webpage HTML
+    if (/\.(png|jpe?g|webp|gif|svg|avif|bmp|ico|css|jsx?|tsx?|map|html?|php)$/i.test(noQuery)) {
+      return false;
+    }
+    // Reject waveform visuals
+    if (/waveform|thumb|poster/i.test(clean) && !/\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(noQuery)) {
+      return false;
+    }
+
+    // 1. Direct audio extension in pathname (e.g. preview.mp3)
+    if (/\.(mp3|wav|ogg|m4a|aac|flac|opus|wma|aiff)$/i.test(noQuery)) {
+      return true;
+    }
+
+    // 2. Query param audio format (e.g. ?format=mp3 or ?ext=wav)
+    if (/[?&](?:format|type|ext)=(?:mp3|wav|ogg|m4a|aac|flac)/i.test(clean)) {
+      return true;
+    }
+
+    // 3. Audio file extension in query or before signature (e.g. preview.mp3?Expires=...)
+    if (/\.(mp3|wav|ogg|m4a|aac|flac|opus)(\?|#|$)/i.test(clean)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function getAudioType(url) {
+    if (!url) return 'mp3';
+    const clean = url.split('?')[0].split('#')[0].toLowerCase();
+    for (const ext of audioExts) {
+      if (clean.endsWith('.' + ext)) return ext;
+    }
+    const m = url.match(/[?&](?:format|type|ext)=([a-z0-9]+)/i);
+    if (m && audioExts.includes(m[1].toLowerCase())) return m[1].toLowerCase();
+    return 'mp3';
+  }
+
+  function cleanTrackTitle(title, artist) {
+    let cleanT = (title || '').trim();
+    let cleanA = (artist || '').trim();
+    if (cleanT && cleanA) {
+      if (cleanT.toLowerCase().includes(cleanA.toLowerCase())) {
+        return cleanT;
+      }
+      return `${cleanT} (${cleanA})`;
+    }
+    return cleanT || cleanA || 'Audio Track';
+  }
+
   // ─── Audio Extractor ───────────────────────
   function extractAudios() {
     const map = new Map(); // url -> metadata
 
     function addAudio(rawUrl, extra = {}) {
       if (!rawUrl) return;
-      const clean = resolveUrl(String(rawUrl).replace(/\\\//g, '/').trim());
+      const cleanRaw = String(rawUrl).replace(/\\\//g, '/').replace(/\\/g, '').trim();
+      const clean = resolveUrl(cleanRaw);
       if (!clean) return;
 
-      const ext = getExt(clean);
-      const isKnownAudio = audioExts.includes(ext);
-      if (!isKnownAudio && !extra.forceAudio) return;
+      if (!isAudioUrl(clean) && !extra.forceAudio) return;
+      if (map.has(clean)) {
+        const existing = map.get(clean);
+        if ((!existing.title || existing.title === 'Audio Track' || existing.title.startsWith('Audio Track #')) && extra.title) {
+          existing.title = extra.title;
+        }
+        if (!existing.duration && extra.duration) {
+          existing.duration = extra.duration;
+        }
+        return;
+      }
 
-      if (map.has(clean)) return;
+      let title = extra.title || '';
+      if (!title || title === 'Audio Track' || title.startsWith('Audio Track #')) {
+        const rawName = clean.split('?')[0].split('/').pop().replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' ').trim();
+        if (rawName && rawName.length > 2 && !/^\d+$/.test(rawName)) {
+          title = rawName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        } else {
+          title = 'Audio Track';
+        }
+      }
 
-      const title = extra.title || clean.split('?')[0].split('/').pop().replace(/[-_]/g, ' ') || 'Audio Track';
       map.set(clean, {
         url: clean,
         title,
-        type: isKnownAudio ? ext : 'mp3',
+        type: getAudioType(clean),
         source: extra.source || 'audio',
         duration: extra.duration || 0,
         width: 0,
@@ -278,32 +352,194 @@
       });
     }
 
-    // 1. <audio> tags and <source> elements
+    // 1. Deep Script Scanner: Scan ALL scripts (Next.js __next_f chunks, __NEXT_DATA__, JSON-LD, inline state)
+    document.querySelectorAll('script').forEach(script => {
+      try {
+        const rawText = script.textContent;
+        if (!rawText || rawText.length < 15) return;
+        if (!rawText.includes('preview') && !rawText.includes('audio') && !rawText.includes('.mp3') && !rawText.includes('.wav')) return;
+
+        // Normalize escaped quotes and forward slashes typical of Next.js chunks
+        const normalized = rawText
+          .replace(/\\\\"/g, '"')
+          .replace(/\\"/g, '"')
+          .replace(/\\\//g, '/');
+
+        // Strategy A: Extract structured JSON blocks containing preview URLs
+        const objRegex = /\{[^{}]*?"(?:previewUrl|preview_url|audio_preview|previewMp3|audioUrl|audio_url)"[^{}]*?\}/gi;
+        let match;
+        while ((match = objRegex.exec(normalized)) !== null) {
+          const block = match[0];
+          const urlM = block.match(/"(?:previewUrl|preview_url|audio_preview|previewMp3|audioUrl|audio_url)"\s*:\s*"([^"]+)"/i);
+          if (urlM && urlM[1] && isAudioUrl(urlM[1])) {
+            const rawUrl = urlM[1].trim();
+            const titleM = block.match(/"(?:title|name|trackName|songName|headline)"\s*:\s*"([^"]+)"/i);
+            const artistM = block.match(/"(?:artist|artistName|author|creator|composer)"\s*:\s*"([^"]+)"/i);
+            const durationM = block.match(/"(?:duration|durationInSeconds|length)"\s*:\s*(\d+(?:\.\d+)?)/i);
+
+            let itemTitle = titleM ? titleM[1] : '';
+            let itemArtist = artistM ? artistM[1] : '';
+
+            // If not found in immediate block, inspect surrounding text
+            if (!itemTitle) {
+              const surrounding = normalized.substring(Math.max(0, match.index - 500), Math.min(normalized.length, match.index + 500));
+              const sTitleM = surrounding.match(/"(?:title|name|trackName)"\s*:\s*"([^"]+)"/i);
+              const sArtistM = surrounding.match(/"(?:artist|artistName|author)"\s*:\s*"([^"]+)"/i);
+              if (sTitleM) itemTitle = sTitleM[1];
+              if (sArtistM) itemArtist = sArtistM[1];
+            }
+
+            const duration = durationM ? parseFloat(durationM[1]) : 0;
+            addAudio(rawUrl, {
+              title: cleanTrackTitle(itemTitle, itemArtist),
+              duration,
+              source: 'script-json',
+              forceAudio: true
+            });
+          }
+        }
+
+        // Strategy B: Scan direct audio URLs in script text
+        const directUrlRegex = /(https?:\/\/[^\s"'<>\)]+\.(?:mp3|wav|ogg|m4a|aac|flac|opus)(?:\?[^\s"'<>\)]*)?)/gi;
+        let urlMatch;
+        while ((urlMatch = directUrlRegex.exec(normalized)) !== null) {
+          const u = urlMatch[1].trim();
+          if (isAudioUrl(u) && !map.has(u)) {
+            const surrounding = normalized.substring(Math.max(0, urlMatch.index - 300), Math.min(normalized.length, urlMatch.index + 300));
+            const sTitleM = surrounding.match(/"(?:title|name|trackName)"\s*:\s*"([^"]+)"/i);
+            const sArtistM = surrounding.match(/"(?:artist|artistName|author)"\s*:\s*"([^"]+)"/i);
+            const sTitle = sTitleM ? sTitleM[1] : '';
+            const sArtist = sArtistM ? sArtistM[1] : '';
+            addAudio(u, {
+              title: cleanTrackTitle(sTitle, sArtist),
+              source: 'script-url',
+              forceAudio: true
+            });
+          }
+        }
+      } catch { /* skip */ }
+    });
+
+    // 2. React Props / Component Fiber inspection on track elements
+    try {
+      const trackCards = document.querySelectorAll(`
+        [data-test*="track"], [data-test*="audio"], [data-track-id],
+        div[class*="track"], div[class*="item"], div[class*="AudioRow"],
+        article, li
+      `);
+
+      trackCards.forEach(card => {
+        for (const key of Object.keys(card)) {
+          if (key.startsWith('__reactProps$') || key.startsWith('__reactFiber$')) {
+            const props = card[key];
+            const candidate = props?.track || props?.item || props?.stockItem || props?.data;
+            if (candidate && typeof candidate === 'object') {
+              const url = candidate.previewUrl || candidate.preview_url || candidate.audioUrl || candidate.audio_preview || candidate.mp3;
+              if (url && isAudioUrl(url)) {
+                const title = cleanTrackTitle(candidate.title || candidate.name, candidate.artist || candidate.artistName);
+                addAudio(url, {
+                  title,
+                  duration: candidate.duration || 0,
+                  source: 'react-props',
+                  forceAudio: true
+                });
+              }
+            }
+          }
+        }
+      });
+    } catch { /* skip */ }
+
+    // 3. DOM Elements with Data Attributes (custom audio players, track rows, waveforms)
+    const audioElements = document.querySelectorAll(`
+      [data-preview-url], [data-preview], [data-audio-url], [data-audio], [data-audio-src],
+      [data-src*=".mp3"], [data-src*=".wav"], [data-src*=".ogg"], [data-src*=".m4a"],
+      [data-mp3], [data-track-url], [data-track-src], [data-sound-url], [data-sound],
+      [data-sound-file], [data-stream-url], [data-stream], [data-audio-preview],
+      [data-media-url], [data-clip-url], [data-song-url],
+      button[data-id], button[data-track-id], div[data-track-id]
+    `);
+
+    audioElements.forEach(el => {
+      let audioUrl = null;
+      for (const attr of el.attributes) {
+        if (isAudioUrl(attr.value)) {
+          audioUrl = attr.value;
+          break;
+        }
+      }
+
+      if (audioUrl) {
+        let title = el.getAttribute('data-title') || el.getAttribute('data-name') || el.getAttribute('data-track-name') || '';
+        if (!title && el.getAttribute('aria-label')) {
+          title = el.getAttribute('aria-label').replace(/^(?:Play|Pause|Listen to)\s+/i, '').trim();
+        }
+
+        if (!title) {
+          const card = el.closest('[data-test*="track"], [data-test*="item"], [data-test*="audio"], tr, li, article, div[class*="track"], div[class*="item"], div[class*="row"], div[class*="card"]');
+          if (card) {
+            const heading = card.querySelector('h1, h2, h3, h4, [class*="title"], [class*="name"], [data-test*="title"]');
+            const artistEl = card.querySelector('[class*="artist"], [class*="author"], [class*="creator"], [data-test*="artist"]');
+            const trackName = heading?.textContent?.trim() || '';
+            const artistName = artistEl?.textContent?.trim() || '';
+            title = cleanTrackTitle(trackName, artistName);
+          }
+        }
+
+        addAudio(audioUrl, {
+          title,
+          source: 'dom-attribute',
+          forceAudio: true
+        });
+      }
+    });
+
+    // 4. <audio> tags and nested <source> elements (with active track title detection)
     document.querySelectorAll('audio').forEach((aud, idx) => {
       const aSrc = aud.getAttribute('src') || aud.src || aud.currentSrc;
-      const title = aud.getAttribute('title') || aud.getAttribute('aria-label') || `Audio Track #${idx + 1}`;
-      if (aSrc && !aSrc.startsWith('blob:')) {
+      let title = aud.getAttribute('title') || aud.getAttribute('aria-label') || '';
+
+      // If active audio is playing, detect the currently playing track from the page DOM
+      if (!title) {
+        const activePlayingBtn = document.querySelector('button[aria-label*="Pause"], button[class*="playing"], [data-state="playing"], [aria-pressed="true"]');
+        if (activePlayingBtn) {
+          const label = activePlayingBtn.getAttribute('aria-label') || '';
+          if (label) title = label.replace(/^(?:Pause|Play)\s+/i, '').trim();
+          if (!title) {
+            const card = activePlayingBtn.closest('[data-test*="track"], [data-test*="item"], tr, li, div[class*="track"], div[class*="row"]');
+            if (card) {
+              const heading = card.querySelector('h1, h2, h3, h4, [class*="title"], [class*="name"]');
+              const artistEl = card.querySelector('[class*="artist"], [class*="author"]');
+              title = cleanTrackTitle(heading?.textContent, artistEl?.textContent);
+            }
+          }
+        }
+      }
+
+      if (!title) title = `Audio Track #${idx + 1}`;
+
+      if (aSrc) {
         addAudio(aSrc, { title, source: 'audio-tag', forceAudio: true, duration: aud.duration || 0 });
       }
       aud.querySelectorAll('source').forEach(src => {
         const sSrc = src.getAttribute('src') || src.src;
-        if (sSrc && !sSrc.startsWith('blob:')) {
+        if (sSrc) {
           addAudio(sSrc, { title, source: 'audio-source', forceAudio: true });
         }
       });
     });
 
-    // 2. <a> links pointing directly to audio files
+    // 5. <a> links pointing directly to audio files
     document.querySelectorAll('a[href]').forEach(a => {
       const href = a.getAttribute('href') || '';
       if (!href) return;
-      if (new RegExp(`\\.(${audioExts.join('|')})(\\?|$)`, 'i').test(href)) {
+      if (isAudioUrl(href)) {
         const linkTitle = a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent.trim() || '';
-        addAudio(href, { title: linkTitle, source: 'link' });
+        addAudio(href, { title: linkTitle, source: 'link', forceAudio: true });
       }
     });
 
-    // 3. Schema.org AudioObject (<script type="application/ld+json">)
+    // 6. Schema.org AudioObject (<script type="application/ld+json">)
     document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
       try {
         const jsonText = script.textContent.trim();
@@ -327,14 +563,22 @@
       } catch {}
     });
 
-    // 4. Performance resource timing scanner for streaming audio files
+    // 7. Open Graph & Twitter Audio Meta tags
+    try {
+      const ogAudio = document.querySelector('meta[property="og:audio"], meta[property="og:audio:secure_url"]')?.getAttribute('content');
+      const ogTitle = document.querySelector('meta[property="og:title"], meta[name="twitter:title"]')?.getAttribute('content') || '';
+      if (ogAudio && isAudioUrl(ogAudio)) {
+        addAudio(ogAudio, { title: ogTitle, source: 'og-audio', forceAudio: true });
+      }
+    } catch {}
+
+    // 8. Performance resource timing scanner for streaming audio files
     try {
       if (typeof performance !== 'undefined' && performance.getEntriesByType) {
         performance.getEntriesByType('resource').forEach(entry => {
           const name = entry.name;
           if (!name) return;
-          const ext = getExt(name);
-          if (audioExts.includes(ext)) {
+          if (entry.initiatorType === 'audio' || isAudioUrl(name)) {
             addAudio(name, { source: 'network-audio' });
           }
         });
@@ -1097,6 +1341,33 @@
 
   window.addEventListener('scroll', triggerMediaUpdate, { passive: true });
 
+  // Real-time audio playback listener (intercepts dynamic player triggers)
+  ['play', 'playing', 'loadeddata', 'canplay'].forEach(evtName => {
+    document.addEventListener(evtName, (e) => {
+      const el = e.target;
+      if (el && (el.tagName === 'AUDIO' || el.tagName === 'VIDEO')) {
+        triggerMediaUpdate();
+      }
+    }, true);
+  });
+
+  // Observe dynamically fetched network audio resources
+  try {
+    if (typeof PerformanceObserver !== 'undefined') {
+      const perfObserver = new PerformanceObserver((list) => {
+        let hasNewAudio = false;
+        for (const entry of list.getEntries()) {
+          if (entry.name && isAudioUrl(entry.name)) {
+            hasNewAudio = true;
+            break;
+          }
+        }
+        if (hasNewAudio) triggerMediaUpdate();
+      });
+      perfObserver.observe({ entryTypes: ['resource'] });
+    }
+  } catch { /* skip */ }
+
   try {
     const observer = new MutationObserver(mutations => {
       let hasNewMedia = false;
@@ -1104,7 +1375,8 @@
         if (m.addedNodes && m.addedNodes.length > 0) {
           for (const node of m.addedNodes) {
             if (node.nodeType === 1) {
-              if (node.tagName === 'VIDEO' || node.tagName === 'IMG' || node.tagName === 'AUDIO' || node.querySelector?.('video, img, audio, [data-test-id="pin"]')) {
+              if (node.tagName === 'VIDEO' || node.tagName === 'IMG' || node.tagName === 'AUDIO' ||
+                  node.querySelector?.('video, img, audio, [data-test-id="pin"], [data-preview-url], [data-audio-url], [data-track-url], [data-test*="track"], [data-test*="audio"]')) {
                 hasNewMedia = true;
                 break;
               }
