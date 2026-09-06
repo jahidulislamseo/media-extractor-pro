@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jahidulislamseo.github.io/media-extractor-pro/sitemap.xml
