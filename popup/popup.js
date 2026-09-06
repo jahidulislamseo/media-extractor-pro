@@ -73,11 +73,20 @@ document.addEventListener('DOMContentLoaded', () => {
     $('aboutAppVer').innerHTML = `Version ${manifest.version} &nbsp;·&nbsp; Manifest V3`;
   } catch (err) { /* noop fallback */ }
   scanPage();
+
+  // Listen for live scroll updates from the content script
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'updateBadge' && msg.count !== (allImages.length + allVideos.length)) {
+      scanPage(true); // silent rescan without flickering
+    }
+  });
 });
 
-async function scanPage() {
-  showState('loading');
-  refreshBtn.classList.add('spinning');
+async function scanPage(silent = false) {
+  if (!silent) {
+    showState('loading');
+    refreshBtn.classList.add('spinning');
+  }
 
   // Streaming/DRM platforms — extraction not supported
   const BLOCKED_DOMAINS = [
@@ -127,7 +136,18 @@ async function scanPage() {
 
     if (resp) {
       allImages = resp.images || [];
-      allVideos = resp.videos || [];
+
+      // Deduplicate videos by entity hash or clean URL
+      const seenVideoKeys = new Set();
+      allVideos = (resp.videos || []).filter(v => {
+        if (!v || !v.url) return false;
+        let key = v.url.split('?')[0];
+        const m = v.url.match(/([0-9a-f]{32})/i);
+        if (m) key = 'pin_' + m[1].toLowerCase();
+        if (seenVideoKeys.has(key)) return false;
+        seenVideoKeys.add(key);
+        return true;
+      });
 
       // Apply download restriction for streaming platforms (e.g. YouTube)
       setDownloadRestricted(!!resp.downloadRestricted);
@@ -336,7 +356,22 @@ function createGridCard(item, idx) {
   // Thumbnail selection
   let thumbSrc = item.url;
   if (isVideo) {
-    thumbSrc = item.thumbnail || '../icons/icon128.png'; // default placeholder
+    thumbSrc = item.thumbnail || '';
+    if (thumbSrc.includes('.0000000.jpg')) {
+      thumbSrc = thumbSrc.replace('.0000000.jpg', '.0000001.jpg');
+    }
+    if (!thumbSrc && item.url.includes('pinimg.com')) {
+      const m = item.url.match(/([0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{32})/i);
+      if (m) {
+        thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${m[1]}.0000001.jpg`;
+      } else {
+        const m2 = item.url.match(/([0-9a-f]{32})/i);
+        if (m2) {
+          const h = m2[1];
+          thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${h.slice(0, 2)}/${h.slice(2, 4)}/${h.slice(4, 6)}/${h}.0000001.jpg`;
+        }
+      }
+    }
   }
 
   // Play button indicator for video grid items
@@ -360,15 +395,19 @@ function createGridCard(item, idx) {
     </button>
   ` : '';
 
+  const mediaElHtml = (isVideo && !thumbSrc)
+    ? `<video src="${esc(item.url)}#t=0.5" preload="metadata" muted playsinline style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0; pointer-events:none;"></video>`
+    : `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Video')}" loading="lazy" />`;
+
   card.innerHTML = `
-    <img src="${esc(thumbSrc)}" alt="${esc(item.alt || item.title)}" loading="lazy" />
+    ${mediaElHtml}
     ${videoOverlay}
     <div class="card-overlay">
       <div class="card-dim">${dimText}</div>
     </div>
     <span class="type-badge">${esc(typeLabel)}</span>
     <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
-    <div class="card-alt-badge" title="${esc(item.alt || '(No Alt Text)')}">${esc(item.alt || '(No Alt Text)')}</div>
+    <div class="card-alt-badge" title="${esc(item.title || item.alt || (isVideo ? 'Video' : '(No Alt Text)'))}">${esc(item.title || item.alt || (isVideo ? 'Video' : '(No Alt Text)'))}</div>
     <div class="card-btns">
       ${dlBtnHtml}
       ${copySvgBtnHtml}
@@ -377,16 +416,23 @@ function createGridCard(item, idx) {
       </button>
     </div>`;
 
-  // Fallback for missing/broken thumbnails
+  // Fallback: decode first frame with video element if thumbnail fails
   const imgEl = card.querySelector('img');
-  imgEl.onerror = function () {
-    if (isVideo) {
-      // Fallback default gradient and icon for missing video poster
-      this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23e2e8f0'/><polygon points='40,30 70,50 40,70' fill='%2364748b'/></svg>";
-    } else {
-      this.parentElement.classList.add('broken');
-    }
-  };
+  if (imgEl) {
+    imgEl.onerror = function () {
+      if (isVideo) {
+        const vidPreview = document.createElement('video');
+        vidPreview.src = item.url + '#t=0.5';
+        vidPreview.muted = true;
+        vidPreview.playsInline = true;
+        vidPreview.preload = 'metadata';
+        vidPreview.style.cssText = 'width:100%; height:100%; object-fit:cover; position:absolute; inset:0; pointer-events:none;';
+        this.replaceWith(vidPreview);
+      } else {
+        this.parentElement.classList.add('broken');
+      }
+    };
+  }
 
   card.addEventListener('click', e => {
     if (e.target.matches('.card-cb') || e.target.closest('.card-btn')) return;
@@ -440,7 +486,22 @@ function createListCard(item, idx) {
 
   let thumbSrc = item.url;
   if (isVideo) {
-    thumbSrc = item.thumbnail || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23e2e8f0'/><polygon points='40,30 70,50 40,70' fill='%2364748b'/></svg>";
+    thumbSrc = item.thumbnail || '';
+    if (thumbSrc.includes('.0000000.jpg')) {
+      thumbSrc = thumbSrc.replace('.0000000.jpg', '.0000001.jpg');
+    }
+    if (!thumbSrc && item.url.includes('pinimg.com')) {
+      const m = item.url.match(/([0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{32})/i);
+      if (m) {
+        thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${m[1]}.0000001.jpg`;
+      } else {
+        const m2 = item.url.match(/([0-9a-f]{32})/i);
+        if (m2) {
+          const h = m2[1];
+          thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${h.slice(0, 2)}/${h.slice(2, 4)}/${h.slice(4, 6)}/${h}.0000001.jpg`;
+        }
+      }
+    }
   }
 
   const dlBtnHtml = `<button class="card-btn dl-btn" title="Download">
@@ -456,13 +517,17 @@ function createListCard(item, idx) {
     </button>
   ` : '';
 
+  const listMediaHtml = (isVideo && !thumbSrc)
+    ? `<video src="${esc(item.url)}#t=0.5" preload="metadata" muted playsinline style="width:48px; height:48px; object-fit:cover; border-radius:4px; pointer-events:none;"></video>`
+    : `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Media')}" loading="lazy" />`;
+
   card.innerHTML = `
     <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
-    <img src="${esc(thumbSrc)}" alt="${esc(item.alt || item.title)}" loading="lazy" />
+    ${listMediaHtml}
     <div class="list-info">
       <div class="list-url">${esc(shortName)}</div>
       <div class="list-dim">${dimText}</div>
-      <div class="list-alt ${item.alt ? 'has-alt' : 'no-alt'}">Alt: ${esc(item.alt || '(No Alt Text)')}</div>
+      <div class="list-alt ${item.title || item.alt ? 'has-alt' : 'no-alt'}">${esc(item.title || item.alt ? (item.title || ('Alt: ' + item.alt)) : (isVideo ? 'Video' : '(No Alt Text)'))}</div>
     </div>
     <span class="type-badge">${esc(typeLabel)}</span>
     <div class="card-btns">
@@ -473,9 +538,22 @@ function createListCard(item, idx) {
       </button>
     </div>`;
 
-  card.querySelector('img').onerror = function () {
-    this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23e2e8f0'/><polygon points='40,30 70,50 40,70' fill='%2364748b'/></svg>";
-  };
+  const listImg = card.querySelector('img');
+  if (listImg) {
+    listImg.onerror = function () {
+      if (isVideo) {
+        const vidPreview = document.createElement('video');
+        vidPreview.src = item.url + '#t=0.5';
+        vidPreview.muted = true;
+        vidPreview.playsInline = true;
+        vidPreview.preload = 'metadata';
+        vidPreview.style.cssText = 'width:48px; height:48px; object-fit:cover; border-radius:4px; pointer-events:none;';
+        this.replaceWith(vidPreview);
+      } else {
+        this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23e2e8f0'/><polygon points='40,30 70,50 40,70' fill='%2364748b'/></svg>";
+      }
+    };
+  }
 
   card.addEventListener('click', e => {
     if (e.target.matches('.card-cb') || e.target.closest('.card-btn')) return;
@@ -744,7 +822,15 @@ async function downloadSingle(url, index = 1) {
   
   let originalFilename = getFilename(url);
   let ext = getExt(url);
-  if (ext === 'unknown') ext = 'png'; // fallback
+  if (currentTab === 'videos') {
+    if (ext === 'unknown' || ext === 'png' || ext === 'cmfv' || ext === 'bin') ext = 'mp4';
+    originalFilename = originalFilename.replace(/\.(cmfv|cmfa|bin|unknown)$/i, '.mp4');
+    if (!originalFilename.toLowerCase().endsWith('.mp4') && !originalFilename.toLowerCase().endsWith('.webm')) {
+      originalFilename += '.mp4';
+    }
+  } else {
+    if (ext === 'unknown') ext = 'png'; // fallback for images
+  }
   
   let finalFilename = originalFilename;
   if (renamePattern) {
