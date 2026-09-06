@@ -39,19 +39,19 @@ A premium Chrome Extension built with Manifest V3 to extract, preview, filter, a
 ## Folder Structure
 
 ```text
-image-extractor-pro/
+media-extractor-pro/
 ├── manifest.json         # Extension Manifest V3 metadata
-├── PRIVACY.md            # Privacy policy (Chrome Web Store required)
+├── PRIVACY.md            # Privacy policy
 ├── popup/
-│   ├── popup.html        # Main popup GUI with dual tabs & media modals
-│   ├── popup.css         # Modern light theme CSS styles
-│   └── popup.js          # Image/Video tabs, filters, preview, & downloads
+│   ├── popup.html        # Main popup interface
+│   ├── popup.css         # Modern styling & responsive layouts
+│   └── popup.js          # Core UI logic, filters, and downloads
 ├── content/
-│   └── content.js        # DOM image/video/SVG scraping scripts
+│   └── content.js        # High-performance media extraction engine
 ├── background/
-│   └── service-worker.js # Badge counts & downloads manager
+│   └── service-worker.js # Background download & badge manager
 └── icons/
-    ├── icon16.png        # Transparent extension icons in different sizes
+    ├── icon16.png
     ├── icon32.png
     ├── icon48.png
     └── icon128.png
@@ -59,37 +59,46 @@ image-extractor-pro/
 
 ---
 
-## Local Installation (For Testing)
+## 🚀 How to Download & Install from GitHub
 
-1. Open Google Chrome.
-2. Go to **`chrome://extensions/`**.
-3. Toggle the **Developer mode** switch (top-right corner) to **ON**.
-4. Click the **"Load unpacked"** button (top-left).
-5. Select this `image-extractor-pro` folder.
-6. The extension is now ready! Pin it to your Chrome toolbar and test on any site (e.g. Unsplash, Wikipedia).
+You do **not** need Node.js or any build tools to use this extension. It runs natively in Google Chrome, Microsoft Edge, Brave, and other Chromium browsers.
+
+### Method 1: Download ZIP (Easiest)
+
+1. Click the green **`<> Code`** button at the top of this GitHub repository.
+2. Select **"Download ZIP"** (or [click here to download](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)).
+3. Extract (unzip) the downloaded file on your computer. You will get a folder named `media-extractor-pro-master`.
+4. Open Google Chrome (or Edge / Brave / Opera).
+5. In the address bar, type **`chrome://extensions`** and press **Enter**.
+6. Turn **ON** the **"Developer mode"** toggle in the top-right corner.
+7. Click the **"Load unpacked"** button in the top-left corner.
+8. Select the unzipped `media-extractor-pro-master` folder (the folder containing `manifest.json`).
+9. Done! The extension icon will appear in your browser toolbar. Click the puzzle icon 🧩 and pin **Media Extractor Pro** for quick access.
+
+### Method 2: Git Clone
+
+```bash
+git clone https://github.com/jahidulislamseo/media-extractor-pro.git
+```
+Then follow steps 4–9 above and select the cloned `media-extractor-pro` folder.
+
+---
+
+## 🔄 How to Update to the Latest Version
+
+If you already installed the extension and want to get the latest fixes:
+1. Re-download the ZIP or run `git pull origin master` in your folder.
+2. Go to **`chrome://extensions`**.
+3. Find **"Image & Video Extractor"** and click the **Reload (🔄)** icon button.
 
 ---
 
 ## Publishing to the Chrome Web Store
 
-To publish this extension so anyone can install it:
+To build a clean `.zip` package for Chrome Web Store distribution:
 
-### Step 1: Zip the extension directory
-Compress all files and folders inside the `image-extractor-pro` directory into a single `.zip` file. (Make sure `manifest.json` is at the root of the ZIP file).
+```bash
+zip -r media-extractor-pro.zip . -x "*.git*" "*.DS_Store*" "*.vscode*" "*.zip" "*scratch*"
+```
 
-*Note: You can run our packaging script (`make_zip.py`) to generate a perfect `.zip` file automatically!*
-
-### Step 2: Upload to Developer Dashboard
-1. Go to the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
-2. Sign in with a Google Account.
-3. Click **"New Item"** (top-right) or select the existing draft extension.
-4. Drag and drop the generated `image-extractor-pro.zip` file.
-
-### Step 3: Complete Product Listing
-Fill out the required information:
-- **Description:** Detail the new features (Alt-text tags, CSV, inline SVG copy, and website conversion).
-- **Permissions Justification:** Explain why you use `activeTab` and `scripting` (to scan the currently active site's DOM for images/videos).
-- **Graphic Assets:** Upload the Store icon, and the 440x280 & 1400x560 store promo tiles.
-
-### Step 4: Submit for Review
-Click **"Submit for Review"** to publish.
+Upload the resulting `media-extractor-pro.zip` file directly to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
