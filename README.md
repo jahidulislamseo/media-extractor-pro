@@ -1,5 +1,6 @@
 # Media Extractor Pro — Chrome Extension (v2.0.0)
 
+[![🌐 Official Website](https://img.shields.io/badge/🌐_Website-Live-4f46e5?style=for-the-badge)](https://jahidulislamseo.github.io/media-extractor-pro/)
 [![Downloads](https://img.shields.io/github/downloads/jahidulislamseo/media-extractor-pro/total?style=for-the-badge&logo=github&color=2ea44f&label=Downloads)](https://github.com/jahidulislamseo/media-extractor-pro/releases)
 [![⬇️ Download ZIP (v2.0.0)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v2.0.0-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/releases/download/v2.0.0/media-extractor-pro-v2.0.0.zip)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v2.0.0-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
