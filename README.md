@@ -1,8 +1,12 @@
 # Media Extractor Pro — Chrome Extension
 
-A premium Chrome Extension built with Manifest V3 to extract, preview, filter, and download all images and videos from any webpage instantly. Highly integrated with the UnifiedTools Pro website converter.
+[![⬇️ Download ZIP (v1.2.4)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v1.2.4-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v1.2.4-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
 
-[![Available in the Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.1.0-blue.svg?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
+> 🚀 **Direct Download:** **[👉 Click Here to Download Extension ZIP (v1.2.4)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)**  
+> *Unzip the file → Go to `chrome://extensions` → Turn on **Developer mode** → Click **Load unpacked** and select the folder.*
+
+A premium Chrome Extension built with Manifest V3 to extract, preview, filter, and download all images and videos from any webpage instantly. Highly integrated with the UnifiedTools Pro website converter.
 
 ![Media Extractor Pro Icon](icons/icon128.png)
 
