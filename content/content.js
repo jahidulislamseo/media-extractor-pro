@@ -34,6 +34,7 @@
   // ─── Helpers ──────────────────────────────
   const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'avif', 'ico', 'tiff'];
   const videoExts = ['mp4', 'webm', 'ogv', 'mov', 'm4v', '3gp', 'avi', 'flv', 'mkv'];
+  const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus', 'wma', 'aiff'];
 
   function getExt(url) {
     try {
@@ -66,15 +67,13 @@
     }
   }
 
-
-
   // ─── High-Resolution Image Helper ─────────────
   function getHighResImageUrl(url) {
     if (!url) return url;
     try {
       // 1. Pinterest (skip video CDN frames)
       if (url.includes('pinimg.com') && !url.includes('/videos/')) {
-        return url.replace(/\/(?:236x|474x|564x)\//, '/736x/');
+        return url.replace(/\/(?:236x|474x|564x)\//, '/originals/').replace(/\/(?:236x|474x|564x)\//, '/736x/');
       }
       // 2. Twitter / X
       if (url.includes('twimg.com')) {
@@ -97,6 +96,10 @@
       // 6. Reddit
       if (url.includes('preview.redd.it')) {
         return url.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+      }
+      // 7. Instagram CDN image size un-cropping
+      if (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) {
+        return url.replace(/\/s\d{2,4}x\d{2,4}\//, '/');
       }
     } catch {}
     return url;
@@ -212,6 +215,131 @@
         });
       } catch (err) { /* noop */ }
     });
+
+    // 7. Instagram & TikTok Specialized Image Parsers
+    try {
+      // Instagram: Extract highest resolution carousel images from srcset and article cards
+      if (currentHost.includes('instagram.com')) {
+        document.querySelectorAll('article img[srcset], div[role="dialog"] img[srcset], [data-visualcompletion] img').forEach(img => {
+          const srcset = img.getAttribute('srcset');
+          if (srcset) {
+            const candidates = srcset.split(',').map(s => s.trim().split(/\s+/)[0]).filter(Boolean);
+            if (candidates.length > 0) {
+              const bestCandidate = candidates[candidates.length - 1]; // last one is highest resolution (e.g. 1080w)
+              addImage(bestCandidate, {
+                alt: img.alt || 'Instagram Photo',
+                source: 'instagram-carousel'
+              });
+            }
+          }
+        });
+      }
+
+      // TikTok: Extract full-resolution photo post slideshows & thumbnails
+      if (currentHost.includes('tiktok.com')) {
+        document.querySelectorAll('img[src*="tiktokcdn"], [data-e2e="photo-mode-image"] img, img[class*="tiktok"]').forEach(img => {
+          if (img.src) {
+            addImage(img.src, {
+              alt: img.alt || 'TikTok Media',
+              source: 'tiktok-post'
+            });
+          }
+        });
+      }
+    } catch {}
+
+    return Array.from(map.values());
+  }
+
+  // ─── Audio Extractor ───────────────────────
+  function extractAudios() {
+    const map = new Map(); // url -> metadata
+
+    function addAudio(rawUrl, extra = {}) {
+      if (!rawUrl) return;
+      const clean = resolveUrl(String(rawUrl).replace(/\\\//g, '/').trim());
+      if (!clean) return;
+
+      const ext = getExt(clean);
+      const isKnownAudio = audioExts.includes(ext);
+      if (!isKnownAudio && !extra.forceAudio) return;
+
+      if (map.has(clean)) return;
+
+      const title = extra.title || clean.split('?')[0].split('/').pop().replace(/[-_]/g, ' ') || 'Audio Track';
+      map.set(clean, {
+        url: clean,
+        title,
+        type: isKnownAudio ? ext : 'mp3',
+        source: extra.source || 'audio',
+        duration: extra.duration || 0,
+        width: 0,
+        height: 0
+      });
+    }
+
+    // 1. <audio> tags and <source> elements
+    document.querySelectorAll('audio').forEach((aud, idx) => {
+      const aSrc = aud.getAttribute('src') || aud.src || aud.currentSrc;
+      const title = aud.getAttribute('title') || aud.getAttribute('aria-label') || `Audio Track #${idx + 1}`;
+      if (aSrc && !aSrc.startsWith('blob:')) {
+        addAudio(aSrc, { title, source: 'audio-tag', forceAudio: true, duration: aud.duration || 0 });
+      }
+      aud.querySelectorAll('source').forEach(src => {
+        const sSrc = src.getAttribute('src') || src.src;
+        if (sSrc && !sSrc.startsWith('blob:')) {
+          addAudio(sSrc, { title, source: 'audio-source', forceAudio: true });
+        }
+      });
+    });
+
+    // 2. <a> links pointing directly to audio files
+    document.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      if (!href) return;
+      if (new RegExp(`\\.(${audioExts.join('|')})(\\?|$)`, 'i').test(href)) {
+        const linkTitle = a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent.trim() || '';
+        addAudio(href, { title: linkTitle, source: 'link' });
+      }
+    });
+
+    // 3. Schema.org AudioObject (<script type="application/ld+json">)
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+      try {
+        const jsonText = script.textContent.trim();
+        if (!jsonText || !jsonText.includes('AudioObject')) return;
+        const data = JSON.parse(jsonText);
+        function findAudios(obj) {
+          if (!obj || typeof obj !== 'object') return;
+          if (obj['@type'] === 'AudioObject' && (obj.contentUrl || obj.embedUrl)) {
+            addAudio(obj.contentUrl || obj.embedUrl, {
+              title: obj.name || obj.headline || 'Audio Stream',
+              duration: obj.duration || 0,
+              source: 'schema-audio',
+              forceAudio: true
+            });
+          }
+          for (const k of Object.keys(obj)) {
+            if (typeof obj[k] === 'object') findAudios(obj[k]);
+          }
+        }
+        findAudios(data);
+      } catch {}
+    });
+
+    // 4. Performance resource timing scanner for streaming audio files
+    try {
+      if (typeof performance !== 'undefined' && performance.getEntriesByType) {
+        performance.getEntriesByType('resource').forEach(entry => {
+          const name = entry.name;
+          if (!name) return;
+          const ext = getExt(name);
+          if (audioExts.includes(ext)) {
+            addAudio(name, { source: 'network-audio' });
+          }
+        });
+      }
+    } catch {}
 
     return Array.from(map.values());
   }
@@ -807,12 +935,106 @@
       });
     }
 
+    // 8. Instagram & TikTok Specialized Video Parsers
+    try {
+      if (currentHost.includes('instagram.com')) {
+        document.querySelectorAll('article video, div[role="dialog"] video, [data-video-id] video').forEach(vid => {
+          const vSrc = vid.src || vid.currentSrc || vid.getAttribute('src');
+          if (vSrc && !vSrc.startsWith('blob:')) {
+            addVideo(vSrc, {
+              source: 'instagram-video',
+              type: 'mp4',
+              thumbnail: vid.getAttribute('poster') || vid.poster || ''
+            });
+          }
+        });
+      }
+
+      if (currentHost.includes('tiktok.com')) {
+        document.querySelectorAll('video').forEach(vid => {
+          const vSrc = vid.src || vid.currentSrc || vid.getAttribute('src');
+          if (vSrc && !vSrc.startsWith('blob:')) {
+            addVideo(vSrc, {
+              source: 'tiktok-video',
+              type: 'mp4',
+              thumbnail: vid.getAttribute('poster') || vid.poster || ''
+            });
+          }
+        });
+
+        // Parse TikTok JSON hydration script for clean watermark-free video URLs
+        const ttScript = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__') || document.getElementById('SIGI_STATE');
+        if (ttScript && ttScript.textContent) {
+          try {
+            const data = JSON.parse(ttScript.textContent);
+            function scanTT(obj) {
+              if (!obj || typeof obj !== 'object') return;
+              if (obj.playAddr || obj.downloadAddr) {
+                const playUrl = obj.playAddr || obj.downloadAddr;
+                const cover = obj.cover || obj.originCover || '';
+                addVideo(playUrl, { source: 'tiktok-data', type: 'mp4', thumbnail: cover });
+              }
+              for (const k of Object.keys(obj)) {
+                if (typeof obj[k] === 'object') scanTT(obj[k]);
+              }
+            }
+            scanTT(data);
+          } catch {}
+        }
+      }
+    } catch {}
+
     return Array.from(map.values()).map(item => {
       const { qualityScore, ...rest } = item;
       return rest;
     });
   }
 
+  // ─── Auto-Scroll & Deep Feed Scraper ──────
+  let autoScrollInterval = null;
+  let autoScrollStep = 0;
+
+  function startAutoScroll(options = {}) {
+    if (autoScrollInterval) return;
+    const stepDistance = options.distance || 650;
+    const intervalMs = options.interval || 900;
+
+    autoScrollInterval = setInterval(() => {
+      const scrollMax = document.documentElement.scrollHeight - window.innerHeight;
+      const currentPos = window.scrollY;
+
+      if (currentPos >= scrollMax - 60) {
+        stopAutoScroll();
+        chrome.runtime.sendMessage({
+          action: 'autoScrollComplete',
+          totalSteps: autoScrollStep
+        }).catch(() => {});
+        return;
+      }
+
+      window.scrollBy({ top: stepDistance, behavior: 'smooth' });
+      autoScrollStep++;
+
+      const images = extractImages();
+      const videos = extractVideos();
+      const audios = extractAudios();
+      const totalCount = images.length + videos.length + audios.length;
+
+      chrome.runtime.sendMessage({
+        action: 'autoScrollProgress',
+        step: autoScrollStep,
+        count: totalCount
+      }).catch(() => {});
+    }, intervalMs);
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollInterval) {
+      clearInterval(autoScrollInterval);
+      autoScrollInterval = null;
+      autoScrollStep = 0;
+    }
+  }
 
   // ─── Message Listener ─────────────────────
   chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
@@ -820,17 +1042,28 @@
       try {
         const images = extractImages();
         const videos = extractVideos();
+        const audios = extractAudios();
         sendResponse({
           images,
           videos,
+          audios,
+          isAutoScrolling: !!autoScrollInterval,
           downloadRestricted: isDownloadRestricted, // true on YouTube/streaming sites
           pageUrl: window.location.href,
           pageTitle: document.title,
           timestamp: Date.now()
         });
       } catch (err) {
-        sendResponse({ images: [], videos: [], error: err.message });
+        sendResponse({ images: [], videos: [], audios: [], error: err.message });
       }
+    } else if (request.action === 'startAutoScroll') {
+      startAutoScroll(request.options || {});
+      sendResponse({ success: true, isAutoScrolling: true });
+    } else if (request.action === 'stopAutoScroll') {
+      stopAutoScroll();
+      sendResponse({ success: true, isAutoScrolling: false });
+    } else if (request.action === 'getAutoScrollStatus') {
+      sendResponse({ isAutoScrolling: !!autoScrollInterval, step: autoScrollStep });
     }
     return true; // Keep channel open
   });
@@ -843,9 +1076,10 @@
       try {
         const images = extractImages();
         const videos = extractVideos();
+        const audios = extractAudios();
         chrome.runtime.sendMessage({
           action: 'updateBadge',
-          count: images.length + videos.length
+          count: images.length + videos.length + audios.length
         }).catch(() => {});
       } catch { /* ignore */ }
     }, 600);
@@ -854,9 +1088,10 @@
   try {
     const images = extractImages();
     const videos = extractVideos();
+    const audios = extractAudios();
     chrome.runtime.sendMessage({
       action: 'updateBadge',
-      count: images.length + videos.length
+      count: images.length + videos.length + audios.length
     }).catch(() => {});
   } catch { /* ignore */ }
 
@@ -869,7 +1104,7 @@
         if (m.addedNodes && m.addedNodes.length > 0) {
           for (const node of m.addedNodes) {
             if (node.nodeType === 1) {
-              if (node.tagName === 'VIDEO' || node.tagName === 'IMG' || node.querySelector?.('video, img, [data-test-id="pin"]')) {
+              if (node.tagName === 'VIDEO' || node.tagName === 'IMG' || node.tagName === 'AUDIO' || node.querySelector?.('video, img, audio, [data-test-id="pin"]')) {
                 hasNewMedia = true;
                 break;
               }

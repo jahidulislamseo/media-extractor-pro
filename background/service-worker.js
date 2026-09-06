@@ -206,9 +206,50 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     chrome.tabs.sendMessage(tabId, { action: 'extractMedia' }, res => {
       if (chrome.runtime.lastError) return;
       if (res) {
-        const count = (res.images?.length || 0) + (res.videos?.length || 0);
+        const count = (res.images?.length || 0) + (res.videos?.length || 0) + (res.audios?.length || 0);
         setBadge(count, tabId);
       }
     });
   } catch { /* ignore */ }
 });
+
+// ── Context Menus Setup ───────────────────────
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'mep_extract_page',
+      title: 'Extract Media with Media Extractor Pro',
+      contexts: ['page']
+    });
+    chrome.contextMenus.create({
+      id: 'mep_download_original',
+      title: 'Download in Original HD Quality',
+      contexts: ['image', 'video']
+    });
+  });
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === 'mep_extract_page') {
+    if (chrome.action.openPopup) {
+      chrome.action.openPopup().catch(() => {});
+    }
+  } else if (info.menuItemId === 'mep_download_original') {
+    const rawUrl = info.srcUrl || info.linkUrl;
+    if (!rawUrl) return;
+    let downloadUrl = rawUrl;
+    if (downloadUrl.includes('pinimg.com/videos')) {
+      downloadUrl = await resolveValidPinterestDownloadUrl(downloadUrl);
+    } else {
+      downloadUrl = await resolveOriginalImageUrl(downloadUrl);
+    }
+    const ext = downloadUrl.split('?')[0].split('.').pop() || 'jpg';
+    chrome.downloads.download({
+      url: downloadUrl,
+      filename: `media-extractor-pro/original_${Date.now()}.${ext}`,
+      saveAs: false,
+      conflictAction: 'uniquify'
+    }).catch(err => console.warn('[MEP] context menu download error:', err));
+  }
+});
+

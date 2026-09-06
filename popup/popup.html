@@ -36,6 +36,12 @@
         <span class="count-num" id="countNum">–</span>
         <span class="count-label">found</span>
       </div>
+      <button class="icon-btn" id="autoScrollBtn" title="Auto-Scroll Deep Feed (Infinite Scraper)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="7 13 12 18 17 13"></polyline>
+          <polyline points="7 6 12 11 17 6"></polyline>
+        </svg>
+      </button>
       <button class="icon-btn" id="refreshBtn" title="Re-scan page">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -138,6 +144,11 @@
       Videos
       <span class="tab-count" id="tabVidCount"></span>
     </button>
+    <button class="tab-btn" id="tabAudios">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Audios
+      <span class="tab-count" id="tabAudCount"></span>
+    </button>
   </div>
 
 
@@ -168,6 +179,14 @@
         <button class="chip" data-type="mp4">MP4</button>
         <button class="chip" data-type="webm">WEBM</button>
       </div>
+      <!-- Audio format filters -->
+      <div class="chip-group" id="audioTypeFilters" style="display:none">
+        <button class="chip active" data-type="all">All</button>
+        <button class="chip" data-type="mp3">MP3</button>
+        <button class="chip" data-type="wav">WAV</button>
+        <button class="chip" data-type="ogg">OGG</button>
+        <button class="chip" data-type="m4a">M4A</button>
+      </div>
 
       <div class="right-filters">
         <select id="sizeFilter" title="Minimum dimension">
@@ -197,7 +216,7 @@
     </label>
     <span class="sel-count" id="selCount">0 selected</span>
     <div style="display: flex; gap: 6px;">
-      <button class="txt-btn" id="optionsToggle" title="Rename & Folder Options">
+      <button class="txt-btn" id="optionsToggle" title="Settings, Filters & Folder Options">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -224,6 +243,20 @@
       <div class="option-field">
         <label for="renamePatternInput">Rename Template</label>
         <input id="renamePatternInput" type="text" placeholder="e.g. img-[index]" />
+      </div>
+      <div class="option-field" style="grid-column: span 2;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label for="dimSlider">Min Dimension Filter: <strong id="dimSliderVal" style="color:var(--p1);">All sizes</strong></label>
+          <span style="font-size:9px; color:var(--t3);">Exclude small icons/logos</span>
+        </div>
+        <input id="dimSlider" type="range" min="0" max="1920" step="50" value="0" style="width:100%; margin-top:4px; accent-color:var(--p1); cursor:pointer;" />
+      </div>
+      <div class="option-field" style="grid-column: span 2; display:flex; flex-direction:row; align-items:center; gap:8px;">
+        <label class="check-label" style="font-size:10px; font-weight:600;">
+          <input type="checkbox" id="convertWebpCheck" />
+          <span class="check-custom"></span>
+          <span>Convert WebP & AVIF to pristine JPG on Download</span>
+        </label>
       </div>
     </div>
   </div>
@@ -266,18 +299,15 @@
         <line x1="16" y1="17" x2="8" y2="17"/>
         <polyline points="10 9 9 9 8 9"/>
       </svg>
-      Export CSV
+      CSV
     </button>
-    <button class="btn btn-ghost" id="bulkConvertBtn" title="Convert selected images with UnifiedTools Pro">
+    <button class="btn btn-ghost" id="downloadZipBtn" title="Download selected or visible media as a single ZIP archive">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M16 3h5v5"/>
-        <path d="M8 3H3v5"/>
-        <path d="M12 22v-8"/>
-        <path d="M12 14l-4 4"/>
-        <path d="M12 14l4 4"/>
-        <path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/>
+        <polyline points="21 8 21 21 3 21 3 8"/>
+        <rect x="1" y="3" width="22" height="5"/>
+        <line x1="10" y1="12" x2="14" y2="12"/>
       </svg>
-      Convert
+      ZIP
     </button>
     <button class="btn btn-primary" id="downloadBtn">
       <svg viewBox="0 0 24 24" fill="currentColor">
@@ -303,21 +333,24 @@
       <div class="modal-img-wrap">
         <img id="previewImg" src="" alt="Preview" style="display:none;" />
         <video id="previewVideo" controls src="" style="display:none; width:100%; max-height:220px; outline:none; border-radius:8px; background:#000;"></video>
+        <audio id="previewAudio" controls src="" style="display:none; width:100%; outline:none; padding:10px;"></audio>
         <iframe id="previewIframe" src="" style="display:none; width:100%; height:220px; border:none; border-radius:8px;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
       <div class="modal-meta" id="modalMeta"></div>
       <div class="modal-url" id="modalUrl"></div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="modalCopy">Copy URL</button>
-        <button class="btn btn-ghost" id="modalCopySvg" style="display:none;">Copy SVG Code</button>
+        <button class="btn btn-ghost" id="modalCopySvg" style="display:none;">Copy SVG</button>
+        <button class="btn btn-ghost" id="modalSaveJpg" style="display:none;" title="Save image as clean uncompressed JPEG">JPG</button>
+        <button class="btn btn-ghost" id="modalSavePng" style="display:none;" title="Save image as lossless PNG">PNG</button>
         <button class="btn btn-ghost" id="modalOpenTab">Open in Tab</button>
-        <button class="btn btn-ghost" id="modalConvert">Convert Image</button>
         <button class="btn btn-primary" id="modalDownload">Download</button>
       </div>
     </div>
   </div>
 
 </div><!-- /.app -->
+<script src="../lib/jszip.min.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

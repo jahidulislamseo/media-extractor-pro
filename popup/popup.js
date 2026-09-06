@@ -1,69 +1,90 @@
 /* =============================================
    Media Extractor Pro — popup.js
+   Full Powerhouse Suite v2.0.0
+   1. One-Click Bulk "Download as ZIP" (JSZip 3.10.1)
+   2. Auto-Scroll & Deep Scraper Engine
+   3. Audio / MP3 Extractor Tab
+   4. Smart Dimension / Resolution Slider
+   5. Offline Canvas Image Format Transcoder
+   6. High-Res Platform Parsers (Instagram, TikTok, Pinterest)
    ============================================= */
 'use strict';
 
 const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'avif', 'ico', 'tiff'];
 const videoExts = ['mp4', 'webm', 'ogv', 'mov', 'm4v', '3gp', 'avi', 'flv', 'mkv'];
+const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus', 'wma', 'aiff'];
 
 // ── State ─────────────────────────────────────
-let allImages      = [];
-let allVideos      = [];
-let filteredMedia  = [];
-let selected       = new Set();
-let currentTab     = 'images'; // 'images' or 'videos'
-let activeImgType  = 'all';
-let activeVidType  = 'all';
-let isListView     = false;
-let currentPreview = null;
+let allImages       = [];
+let allVideos       = [];
+let allAudios       = [];
+let filteredMedia   = [];
+let selected        = new Set();
+let currentTab      = 'images'; // 'images' | 'videos' | 'audios'
+let activeImgType   = 'all';
+let activeVidType   = 'all';
+let activeAudType   = 'all';
+let isListView      = false;
+let currentPreview  = null;
+let isAutoScrolling = false;
 
-// ── DOM refs ──────────────────────────────────
+// ── DOM Refs ──────────────────────────────────
 const $ = id => document.getElementById(id);
-const gallery          = $('gallery');
-const imageGrid        = $('imageGrid');
-const stateLoading     = $('stateLoading');
-const stateEmpty       = $('stateEmpty');
-const countNum         = $('countNum');
-const selCount         = $('selCount');
-const searchInput      = $('searchInput');
-const clearSearch      = $('clearSearch');
-const imageTypeFilters = $('imageTypeFilters');
-const videoTypeFilters = $('videoTypeFilters');
-const sizeFilter       = $('sizeFilter');
-const sortBy           = $('sortBy');
-const selectAll        = $('selectAll');
-const downloadBtn      = $('downloadBtn');
-const downloadLabel    = $('downloadLabel');
-const copyUrlsBtn      = $('copyUrlsBtn');
-const exportCsvBtn     = $('exportCsvBtn');
-const bulkConvertBtn   = $('bulkConvertBtn');
-const optionsToggle    = $('optionsToggle');
-const optionsPanel     = $('optionsPanel');
-const subfolderInput   = $('subfolderInput');
+const gallery            = $('gallery');
+const imageGrid          = $('imageGrid');
+const stateLoading       = $('stateLoading');
+const stateEmpty         = $('stateEmpty');
+const countNum           = $('countNum');
+const selCount           = $('selCount');
+const searchInput        = $('searchInput');
+const clearSearch        = $('clearSearch');
+const imageTypeFilters   = $('imageTypeFilters');
+const videoTypeFilters   = $('videoTypeFilters');
+const audioTypeFilters   = $('audioTypeFilters');
+const sizeFilter         = $('sizeFilter');
+const sortBy             = $('sortBy');
+const selectAll          = $('selectAll');
+const downloadBtn        = $('downloadBtn');
+const downloadLabel      = $('downloadLabel');
+const downloadZipBtn     = $('downloadZipBtn');
+const copyUrlsBtn        = $('copyUrlsBtn');
+const exportCsvBtn       = $('exportCsvBtn');
+const autoScrollBtn      = $('autoScrollBtn');
+const optionsToggle      = $('optionsToggle');
+const optionsPanel       = $('optionsPanel');
+const subfolderInput     = $('subfolderInput');
 const renamePatternInput = $('renamePatternInput');
-const viewToggle       = $('viewToggle');
-const refreshBtn       = $('refreshBtn');
-const toast            = $('toast');
-const modal            = $('modal');
-const modalBg          = $('modalBg');
-const modalClose       = $('modalClose');
+const dimSlider          = $('dimSlider');
+const dimSliderVal       = $('dimSliderVal');
+const convertWebpCheck   = $('convertWebpCheck');
+const viewToggle         = $('viewToggle');
+const refreshBtn         = $('refreshBtn');
+const toast              = $('toast');
+const modal              = $('modal');
+const modalBg            = $('modalBg');
+const modalClose         = $('modalClose');
 
-// Modal preview elements
-const previewImg       = $('previewImg');
-const previewVideo     = $('previewVideo');
-const previewIframe    = $('previewIframe');
-const modalMeta        = $('modalMeta');
-const modalUrl         = $('modalUrl');
-const modalCopy        = $('modalCopy');
-const modalDownload    = $('modalDownload');
-const modalCopySvg     = $('modalCopySvg');
-const modalConvert     = $('modalConvert');
+// Modal Preview Elements
+const previewImg         = $('previewImg');
+const previewVideo       = $('previewVideo');
+const previewAudio       = $('previewAudio');
+const previewIframe      = $('previewIframe');
+const modalMeta          = $('modalMeta');
+const modalUrl           = $('modalUrl');
+const modalCopy          = $('modalCopy');
+const modalDownload      = $('modalDownload');
+const modalCopySvg       = $('modalCopySvg');
+const modalSaveJpg       = $('modalSaveJpg');
+const modalSavePng       = $('modalSavePng');
+const modalOpenTab       = $('modalOpenTab');
 
 // Tabs
-const tabImages        = $('tabImages');
-const tabVideos        = $('tabVideos');
-const tabImgCount      = $('tabImgCount');
-const tabVidCount      = $('tabVidCount');
+const tabImages          = $('tabImages');
+const tabVideos          = $('tabVideos');
+const tabAudios          = $('tabAudios');
+const tabImgCount        = $('tabImgCount');
+const tabVidCount        = $('tabVidCount');
+const tabAudCount        = $('tabAudCount');
 
 // ── Init ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -71,13 +92,23 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const manifest = chrome.runtime.getManifest();
     $('aboutAppVer').innerHTML = `Version ${manifest.version} &nbsp;·&nbsp; Manifest V3`;
-  } catch (err) { /* noop fallback */ }
+  } catch {}
   scanPage();
 
-  // Listen for live scroll updates from the content script
+  // Listen for live scroll updates and deep scraper progress
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action === 'updateBadge' && msg.count !== (allImages.length + allVideos.length)) {
-      scanPage(true); // silent rescan without flickering
+    if (msg.action === 'updateBadge') {
+      const total = allImages.length + allVideos.length + allAudios.length;
+      if (msg.count !== total) {
+        scanPage(true); // silent rescan without jarring spinner
+      }
+    } else if (msg.action === 'autoScrollProgress') {
+      scanPage(true);
+      showToast(`Auto-scrolling: Step #${msg.step} (Found ${msg.count || (allImages.length + allVideos.length + allAudios.length)} items)`, 'ok');
+    } else if (msg.action === 'autoScrollComplete') {
+      setAutoScrollActive(false);
+      showToast('🎉 Auto-scrolling reached the end of page!', 'ok');
+      scanPage(true);
     }
   });
 });
@@ -88,30 +119,12 @@ async function scanPage(silent = false) {
     refreshBtn.classList.add('spinning');
   }
 
-  // Streaming/DRM platforms — extraction not supported
-  const BLOCKED_DOMAINS = [
-    'youtube.com', 'youtu.be', 'youtube-nocookie.com',
-    'netflix.com', 'primevideo.com', 'disneyplus.com',
-    'hulu.com', 'hbomax.com', 'max.com', 'peacocktv.com',
-    'paramountplus.com', 'espn.com', 'twitch.tv',
-    'spotify.com', 'tidal.com', 'deezer.com',
-    'soundcloud.com', 'vimeo.com', 'dailymotion.com',
-    'bilibili.com', 'crunchyroll.com', 'funimation.com'
-  ];
-
-  function isBlockedUrl(url) {
-    try {
-      const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-      return BLOCKED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
-    } catch { return false; }
-  }
-
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab || !tab.id || !tab.url || 
-        tab.url.startsWith('chrome://') || 
-        tab.url.startsWith('chrome-extension://') || 
+    if (!tab || !tab.id || !tab.url ||
+        tab.url.startsWith('chrome://') ||
+        tab.url.startsWith('chrome-extension://') ||
         tab.url.startsWith('view-source:') ||
         tab.url.startsWith('about:') ||
         tab.url.includes('chromewebstore.google.com')) {
@@ -119,13 +132,13 @@ async function scanPage(silent = false) {
       return;
     }
 
-    // Inject content script if not already there
+    // Inject content script if not already present
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['content/content.js']
     }).catch(() => {});
 
-    await sleep(250);
+    await sleep(200);
 
     const resp = await new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(tab.id, { action: 'extractMedia' }, res => {
@@ -149,19 +162,33 @@ async function scanPage(silent = false) {
         return true;
       });
 
-      // Apply download restriction for streaming platforms (e.g. YouTube)
+      // Audio tracks
+      const seenAudioKeys = new Set();
+      allAudios = (resp.audios || []).filter(a => {
+        if (!a || !a.url) return false;
+        const key = a.url.split('?')[0];
+        if (seenAudioKeys.has(key)) return false;
+        seenAudioKeys.add(key);
+        return true;
+      });
+
+      // Auto-scroll indicator sync
+      if (typeof resp.isAutoScrolling === 'boolean') {
+        setAutoScrollActive(resp.isAutoScrolling);
+      }
+
+      // Download restriction for streaming platforms (e.g. YouTube)
       setDownloadRestricted(!!resp.downloadRestricted);
 
       // Update badge count
       chrome.runtime.sendMessage({
         action: 'updateBadge',
-        count: allImages.length + allVideos.length
+        count: allImages.length + allVideos.length + allAudios.length
       }).catch(() => {});
 
-      // Update tab count badges
       updateTabCounts();
 
-      // Resolve image dimensions in background
+      // Resolve image dimensions in background for precise filtering
       resolveDimensions(allImages).then(() => {
         if (currentTab === 'images') applyFilters();
       });
@@ -184,7 +211,6 @@ let downloadIsRestricted = false;
 function setDownloadRestricted(restricted) {
   downloadIsRestricted = restricted;
 
-  // Show/hide restriction notice banner
   let banner = document.getElementById('restrictedBanner');
   if (restricted) {
     if (!banner) {
@@ -206,36 +232,35 @@ function setDownloadRestricted(restricted) {
         'letter-spacing: 0.01em'
       ].join(';');
       banner.innerHTML = '⚠️ Downloads disabled on this platform (Terms of Service)';
-      // Insert before gallery
       gallery.parentNode.insertBefore(banner, gallery);
     }
     banner.style.display = 'flex';
 
-    // Disable all download/copy action buttons
     downloadBtn.disabled = true;
     downloadBtn.style.opacity = '0.4';
-    downloadBtn.title = 'Downloads not available on streaming platforms';
+    downloadZipBtn.disabled = true;
+    downloadZipBtn.style.opacity = '0.4';
     copyUrlsBtn.disabled = true;
     copyUrlsBtn.style.opacity = '0.4';
-    exportCsvBtn.disabled = false; // CSV export (URL list) is still OK
   } else {
     if (banner) banner.style.display = 'none';
     downloadBtn.disabled = false;
     downloadBtn.style.opacity = '';
-    downloadBtn.title = '';
+    downloadZipBtn.disabled = false;
+    downloadZipBtn.style.opacity = '';
     copyUrlsBtn.disabled = false;
     copyUrlsBtn.style.opacity = '';
   }
 }
 
-
 // ── Tab Count Badges ─────────────────────────
 function updateTabCounts() {
   tabImgCount.textContent = allImages.length > 0 ? allImages.length : '';
   tabVidCount.textContent = allVideos.length > 0 ? allVideos.length : '';
+  tabAudCount.textContent = allAudios.length > 0 ? allAudios.length : '';
 }
 
-// ── Dimension resolver for Images ─────────────
+// ── Dimension Resolver for Images ─────────────
 function resolveDimensions(images) {
   const needDims = images.filter(i => !i.width || !i.height);
   if (!needDims.length) return Promise.resolve();
@@ -264,14 +289,18 @@ function resolveDimensions(images) {
 
 // ── Filters & Sort ────────────────────────────
 function applyFilters(silent = false) {
-  let result = currentTab === 'images' ? [...allImages] : [...allVideos];
+  let result = [];
+  if (currentTab === 'images') result = [...allImages];
+  else if (currentTab === 'videos') result = [...allVideos];
+  else result = [...allAudios];
+
   const q = searchInput.value.trim().toLowerCase();
 
-  // Search filter
+  // Keyword / URL Search
   if (q) {
     result = result.filter(item => {
       const urlMatch = item.url.toLowerCase().includes(q);
-      const textMatch = currentTab === 'images' 
+      const textMatch = currentTab === 'images'
         ? (item.alt && item.alt.toLowerCase().includes(q))
         : (item.title && item.title.toLowerCase().includes(q));
       return urlMatch || textMatch;
@@ -281,7 +310,7 @@ function applyFilters(silent = false) {
     clearSearch.classList.remove('visible');
   }
 
-  // Type filter
+  // Format Type Filters
   if (currentTab === 'images') {
     if (activeImgType !== 'all') {
       result = result.filter(i => {
@@ -290,25 +319,41 @@ function applyFilters(silent = false) {
         return ext === activeImgType;
       });
     }
-  } else {
+  } else if (currentTab === 'videos') {
     if (activeVidType !== 'all') {
       result = result.filter(v => {
         const ext = v.type || getExt(v.url);
         return ext === activeVidType;
       });
     }
+  } else {
+    if (activeAudType !== 'all') {
+      result = result.filter(a => {
+        const ext = a.type || getExt(a.url);
+        return ext === activeAudType;
+      });
+    }
   }
 
-  // Size filter (mainly applies to images, or videos with known width)
+  // Dimension Slider Filter (applies to images & videos)
+  const sliderPx = parseInt(dimSlider?.value) || 0;
+  if (sliderPx > 0 && currentTab !== 'audios') {
+    result = result.filter(item => {
+      const maxDim = Math.max(item.width || 0, item.height || 0);
+      return maxDim >= sliderPx;
+    });
+  }
+
+  // Dropdown Size Filter
   const minPx = parseInt(sizeFilter.value) || 0;
-  if (minPx > 0) {
-    result = result.filter(item => item.width >= minPx || item.height >= minPx);
+  if (minPx > 0 && currentTab !== 'audios') {
+    result = result.filter(item => (item.width >= minPx || item.height >= minPx));
   }
 
   // Sorting
   const sort = sortBy.value;
-  if (sort === 'dimensions-desc') result.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-  if (sort === 'dimensions-asc')  result.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+  if (sort === 'dimensions-desc') result.sort((a, b) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)));
+  if (sort === 'dimensions-asc')  result.sort((a, b) => ((a.width || 0) * (a.height || 0)) - ((b.width || 0) * (b.height || 0)));
   if (sort === 'type') result.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
 
   filteredMedia = result;
@@ -349,9 +394,38 @@ function createGridCard(item, idx) {
   card.dataset.idx = idx;
 
   const isVideo = currentTab === 'videos';
+  const isAudio = currentTab === 'audios';
   const typeLabel = (item.type && item.type !== 'unknown') ? item.type.toUpperCase() : getExt(item.url).toUpperCase();
-  const dimText   = (item.width && item.height) ? `${item.width}×${item.height}` : (isVideo ? 'Video' : '');
+  const dimText   = (item.width && item.height) ? `${item.width}×${item.height}` : (isVideo ? 'Video' : (isAudio ? 'Audio' : ''));
   const isSvgCode = !!item.rawSvg;
+
+  // Audio Grid Card
+  if (isAudio) {
+    card.innerHTML = `
+      <div class="audio-card-body">
+        <div class="audio-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <div class="audio-title-label" title="${esc(item.title || item.url)}">${esc(item.title || 'Audio Track')}</div>
+        <audio class="audio-player-mini" src="${esc(item.url)}" preload="none" controls></audio>
+      </div>
+      <span class="type-badge">${esc(typeLabel)}</span>
+      <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
+      <div class="card-btns">
+        <button class="card-btn dl-btn" title="Download Audio">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5z"/><path d="M19 19H5v2h14v-2z"/></svg>
+        </button>
+        <button class="card-btn cp-btn" title="Copy URL">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+      </div>
+    `;
+
+    wireCardEvents(card, item);
+    return card;
+  }
 
   // Thumbnail selection
   let thumbSrc = item.url;
@@ -360,21 +434,8 @@ function createGridCard(item, idx) {
     if (thumbSrc.includes('.0000000.jpg')) {
       thumbSrc = thumbSrc.replace('.0000000.jpg', '.0000001.jpg');
     }
-    if (!thumbSrc && item.url.includes('pinimg.com')) {
-      const m = item.url.match(/([0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{32})/i);
-      if (m) {
-        thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${m[1]}.0000001.jpg`;
-      } else {
-        const m2 = item.url.match(/([0-9a-f]{32})/i);
-        if (m2) {
-          const h = m2[1];
-          thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${h.slice(0, 2)}/${h.slice(2, 4)}/${h.slice(4, 6)}/${h}.0000001.jpg`;
-        }
-      }
-    }
   }
 
-  // Play button indicator for video grid items
   const videoOverlay = isVideo ? `
     <div class="video-play-indicator" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.15);">
       <svg viewBox="0 0 24 24" fill="currentColor" style="width:28px; height:28px; color:white; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5));">
@@ -392,12 +453,11 @@ function createGridCard(item, idx) {
         <polyline points="16 18 22 12 16 6"/>
         <polyline points="8 6 2 12 8 18"/>
       </svg>
-    </button>
-  ` : '';
+    </button>` : '';
 
   const mediaElHtml = (isVideo && !thumbSrc)
     ? `<video src="${esc(item.url)}#t=0.5" preload="metadata" muted playsinline style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0; pointer-events:none;"></video>`
-    : `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Video')}" loading="lazy" />`;
+    : `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Media')}" loading="lazy" />`;
 
   card.innerHTML = `
     ${mediaElHtml}
@@ -416,7 +476,6 @@ function createGridCard(item, idx) {
       </button>
     </div>`;
 
-  // Fallback: decode first frame with video element if thumbnail fails
   const imgEl = card.querySelector('img');
   if (imgEl) {
     imgEl.onerror = function () {
@@ -434,40 +493,7 @@ function createGridCard(item, idx) {
     };
   }
 
-  card.addEventListener('click', e => {
-    if (e.target.matches('.card-cb') || e.target.closest('.card-btn')) return;
-    openPreview(item);
-  });
-  card.querySelector('.card-cb').addEventListener('click', e => {
-    e.stopPropagation();
-    toggleSelect(item.url, card, card.querySelector('.card-cb'));
-  });
-  // Disable download button on restricted platforms
-  const dlBtn = card.querySelector('.dl-btn');
-  if (downloadIsRestricted) {
-    dlBtn.disabled = true;
-    dlBtn.style.opacity = '0.35';
-    dlBtn.title = 'Download disabled (Terms of Service)';
-  }
-  dlBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    if (downloadIsRestricted) {
-      showToast('Downloads not allowed on this platform', 'err');
-      return;
-    }
-    downloadSingle(item.url);
-  });
-  if (isSvgCode) {
-    card.querySelector('.svg-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      copyText(item.rawSvg, 'SVG Code copied!');
-    });
-  }
-  card.querySelector('.cp-btn').addEventListener('click', e => {
-    e.stopPropagation();
-    copyText(item.url, 'URL copied!');
-  });
-
+  wireCardEvents(card, item);
   return card;
 }
 
@@ -478,9 +504,10 @@ function createListCard(item, idx) {
   card.dataset.idx = idx;
 
   const isVideo = currentTab === 'videos';
+  const isAudio = currentTab === 'audios';
   const typeLabel = (item.type && item.type !== 'unknown') ? item.type.toUpperCase() : getExt(item.url).toUpperCase();
-  const dimText   = (item.width && item.height) ? `${item.width} × ${item.height}px` : (isVideo ? 'Video file' : 'Unknown size');
-  const displayName = isVideo ? (item.title || item.url) : item.url;
+  const dimText   = (item.width && item.height) ? `${item.width} × ${item.height}px` : (isVideo ? 'Video file' : (isAudio ? 'Audio file' : 'Unknown size'));
+  const displayName = (isVideo || isAudio) ? (item.title || item.url) : item.url;
   const shortName  = displayName.length > 55 ? displayName.substring(0, 52) + '…' : displayName;
   const isSvgCode = !!item.rawSvg;
 
@@ -489,18 +516,6 @@ function createListCard(item, idx) {
     thumbSrc = item.thumbnail || '';
     if (thumbSrc.includes('.0000000.jpg')) {
       thumbSrc = thumbSrc.replace('.0000000.jpg', '.0000001.jpg');
-    }
-    if (!thumbSrc && item.url.includes('pinimg.com')) {
-      const m = item.url.match(/([0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{32})/i);
-      if (m) {
-        thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${m[1]}.0000001.jpg`;
-      } else {
-        const m2 = item.url.match(/([0-9a-f]{32})/i);
-        if (m2) {
-          const h = m2[1];
-          thumbSrc = `https://i.pinimg.com/videos/thumbnails/originals/${h.slice(0, 2)}/${h.slice(2, 4)}/${h.slice(4, 6)}/${h}.0000001.jpg`;
-        }
-      }
     }
   }
 
@@ -514,12 +529,21 @@ function createListCard(item, idx) {
         <polyline points="16 18 22 12 16 6"/>
         <polyline points="8 6 2 12 8 18"/>
       </svg>
-    </button>
-  ` : '';
+    </button>` : '';
 
-  const listMediaHtml = (isVideo && !thumbSrc)
-    ? `<video src="${esc(item.url)}#t=0.5" preload="metadata" muted playsinline style="width:48px; height:48px; object-fit:cover; border-radius:4px; pointer-events:none;"></video>`
-    : `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Media')}" loading="lazy" />`;
+  let listMediaHtml = '';
+  if (isAudio) {
+    listMediaHtml = `
+      <div style="width:48px; height:48px; border-radius:6px; background:var(--pg); display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>`;
+  } else if (isVideo && !thumbSrc) {
+    listMediaHtml = `<video src="${esc(item.url)}#t=0.5" preload="metadata" muted playsinline style="width:48px; height:48px; object-fit:cover; border-radius:4px; pointer-events:none;"></video>`;
+  } else {
+    listMediaHtml = `<img src="${esc(thumbSrc || item.url)}" alt="${esc(item.title || item.alt || 'Media')}" loading="lazy" />`;
+  }
 
   card.innerHTML = `
     <input type="checkbox" class="card-cb" ${selected.has(item.url) ? 'checked' : ''} />
@@ -527,7 +551,7 @@ function createListCard(item, idx) {
     <div class="list-info">
       <div class="list-url">${esc(shortName)}</div>
       <div class="list-dim">${dimText}</div>
-      <div class="list-alt ${item.title || item.alt ? 'has-alt' : 'no-alt'}">${esc(item.title || item.alt ? (item.title || ('Alt: ' + item.alt)) : (isVideo ? 'Video' : '(No Alt Text)'))}</div>
+      <div class="list-alt ${item.title || item.alt ? 'has-alt' : 'no-alt'}">${esc(item.title || (item.alt ? 'Alt: ' + item.alt : (isVideo ? 'Video' : (isAudio ? 'Audio Track' : '(No Alt Text)'))))}</div>
     </div>
     <span class="type-badge">${esc(typeLabel)}</span>
     <div class="card-btns">
@@ -538,47 +562,47 @@ function createListCard(item, idx) {
       </button>
     </div>`;
 
-  const listImg = card.querySelector('img');
-  if (listImg) {
-    listImg.onerror = function () {
-      if (isVideo) {
-        const vidPreview = document.createElement('video');
-        vidPreview.src = item.url + '#t=0.5';
-        vidPreview.muted = true;
-        vidPreview.playsInline = true;
-        vidPreview.preload = 'metadata';
-        vidPreview.style.cssText = 'width:48px; height:48px; object-fit:cover; border-radius:4px; pointer-events:none;';
-        this.replaceWith(vidPreview);
-      } else {
-        this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%23e2e8f0'/><polygon points='40,30 70,50 40,70' fill='%2364748b'/></svg>";
-      }
-    };
-  }
+  wireCardEvents(card, item);
+  return card;
+}
 
+function wireCardEvents(card, item) {
   card.addEventListener('click', e => {
-    if (e.target.matches('.card-cb') || e.target.closest('.card-btn')) return;
+    if (e.target.matches('.card-cb') || e.target.closest('.card-btn') || e.target.tagName === 'AUDIO') return;
     openPreview(item);
   });
   card.querySelector('.card-cb').addEventListener('click', e => {
     e.stopPropagation();
     toggleSelect(item.url, card, card.querySelector('.card-cb'));
   });
-  card.querySelector('.dl-btn').addEventListener('click', e => {
+
+  const dlBtn = card.querySelector('.dl-btn');
+  if (downloadIsRestricted) {
+    dlBtn.disabled = true;
+    dlBtn.style.opacity = '0.35';
+    dlBtn.title = 'Download disabled on streaming platform';
+  }
+  dlBtn.addEventListener('click', e => {
     e.stopPropagation();
+    if (downloadIsRestricted) {
+      showToast('Downloads not allowed on this platform', 'err');
+      return;
+    }
     downloadSingle(item.url);
   });
-  if (isSvgCode) {
-    card.querySelector('.svg-btn').addEventListener('click', e => {
+
+  const svgBtn = card.querySelector('.svg-btn');
+  if (svgBtn) {
+    svgBtn.addEventListener('click', e => {
       e.stopPropagation();
       copyText(item.rawSvg, 'SVG Code copied!');
     });
   }
+
   card.querySelector('.cp-btn').addEventListener('click', e => {
     e.stopPropagation();
     copyText(item.url, 'URL copied!');
   });
-
-  return card;
 }
 
 // ── Selection ─────────────────────────────────
@@ -616,19 +640,68 @@ function switchTab(tabName) {
   selected.clear();
   updateSelCount();
 
-  if (tabName === 'images') {
-    tabImages.classList.add('active');
-    tabVideos.classList.remove('active');
-    imageTypeFilters.style.display = '';
-    videoTypeFilters.style.display = 'none';
-  } else {
-    tabImages.classList.remove('active');
-    tabVideos.classList.add('active');
-    imageTypeFilters.style.display = 'none';
-    videoTypeFilters.style.display = '';
-  }
+  tabImages.classList.toggle('active', tabName === 'images');
+  tabVideos.classList.toggle('active', tabName === 'videos');
+  tabAudios.classList.toggle('active', tabName === 'audios');
+
+  imageTypeFilters.style.display = tabName === 'images' ? '' : 'none';
+  videoTypeFilters.style.display = tabName === 'videos' ? '' : 'none';
+  audioTypeFilters.style.display = tabName === 'audios' ? '' : 'none';
 
   applyFilters();
+}
+
+// ── Auto-Scroll & Deep Feed Scraper Control ───
+function setAutoScrollActive(active) {
+  isAutoScrolling = active;
+  autoScrollBtn.classList.toggle('active', active);
+  autoScrollBtn.title = active ? 'Stop Auto-Scroll Deep Scraper' : 'Auto-Scroll Deep Feed (Infinite Scraper)';
+}
+
+async function toggleAutoScroll() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) return;
+
+  if (!isAutoScrolling) {
+    setAutoScrollActive(true);
+    showToast('🚀 Deep Scraper active! Auto-scrolling feed...', 'ok');
+    chrome.tabs.sendMessage(tab.id, { action: 'startAutoScroll', options: { distance: 700, interval: 900 } }).catch(() => {});
+  } else {
+    setAutoScrollActive(false);
+    showToast('⏸️ Auto-scrolling stopped', 'ok');
+    chrome.tabs.sendMessage(tab.id, { action: 'stopAutoScroll' }).catch(() => {});
+    scanPage(true);
+  }
+}
+
+// ── Offline Canvas Format Converter ───────────
+async function convertImageBlob(blob, targetFormat = 'image/jpeg', quality = 0.95) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      // Solid white background for JPG conversion of transparent PNG/WebP
+      if (targetFormat === 'image/jpeg') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(b => {
+        if (b) resolve(b);
+        else reject(new Error('Canvas conversion failed'));
+      }, targetFormat, quality);
+    };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+    img.src = url;
+  });
 }
 
 // ── Listeners ─────────────────────────────────
@@ -636,7 +709,12 @@ function setupListeners() {
   // Tabs
   tabImages.addEventListener('click', () => switchTab('images'));
   tabVideos.addEventListener('click', () => switchTab('videos'));
+  tabAudios.addEventListener('click', () => switchTab('audios'));
 
+  // Auto-Scroll Deep Scraper
+  autoScrollBtn.addEventListener('click', toggleAutoScroll);
+
+  // Search
   searchInput.addEventListener('input', () => applyFilters());
   clearSearch.addEventListener('click', () => { searchInput.value = ''; applyFilters(); });
 
@@ -659,6 +737,25 @@ function setupListeners() {
       applyFilters();
     });
   });
+
+  // Type Filters (Audios)
+  audioTypeFilters.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      audioTypeFilters.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeAudType = btn.dataset.type;
+      applyFilters();
+    });
+  });
+
+  // Dimension Slider
+  if (dimSlider) {
+    dimSlider.addEventListener('input', () => {
+      const val = parseInt(dimSlider.value);
+      dimSliderVal.textContent = val === 0 ? 'All sizes' : `≥ ${val}px`;
+      applyFilters(true);
+    });
+  }
 
   sizeFilter.addEventListener('change', () => applyFilters());
   sortBy.addEventListener('change', () => applyFilters());
@@ -688,27 +785,67 @@ function setupListeners() {
   });
 
   downloadBtn.addEventListener('click', handleDownloadAll);
+  downloadZipBtn.addEventListener('click', handleDownloadZip);
   copyUrlsBtn.addEventListener('click', handleCopyUrls);
   exportCsvBtn.addEventListener('click', handleExportCsv);
-  bulkConvertBtn.addEventListener('click', handleBulkConvert);
 
-  // Modal actions
+  // Modal Actions
   modalClose.addEventListener('click', closePreview);
   modalBg.addEventListener('click', closePreview);
-  modalDownload.addEventListener('click', () => { 
-    if (currentPreview) {
-      downloadSingle(currentPreview.url); 
+  modalDownload.addEventListener('click', () => {
+    if (currentPreview) downloadSingle(currentPreview.url);
+  });
+  modalCopy.addEventListener('click', () => {
+    if (currentPreview) copyText(currentPreview.url, 'URL copied!');
+  });
+  modalOpenTab.addEventListener('click', () => {
+    if (currentPreview) chrome.tabs.create({ url: currentPreview.url });
+  });
+
+  // Offline Format Converters
+  modalSaveJpg.addEventListener('click', async () => {
+    if (!currentPreview) return;
+    try {
+      showToast('Converting to clean JPG...', 'ok');
+      const res = await fetch(currentPreview.url);
+      const blob = await res.blob();
+      const jpgBlob = await convertImageBlob(blob, 'image/jpeg', 0.95);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const baseName = getFilename(currentPreview.url).replace(/\.[^.]+$/, '');
+        chrome.downloads.download({
+          url: reader.result,
+          filename: `media-extractor-pro/${baseName}.jpg`,
+          saveAs: false
+        });
+        showToast('Saved pristine JPG!', 'ok');
+      };
+      reader.readAsDataURL(jpgBlob);
+    } catch {
+      showToast('Failed to convert image', 'err');
     }
   });
-  modalCopy.addEventListener('click', () => { if (currentPreview) copyText(currentPreview.url, 'URL copied!'); });
-  modalOpenTab.addEventListener('click', () => { if (currentPreview) chrome.tabs.create({ url: currentPreview.url }); });
-  modalConvert.addEventListener('click', async () => {
-    if (currentPreview) {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const isLocal = tab && tab.url && tab.url.includes('localhost');
-      const baseUrl = isLocal ? 'http://localhost:3000' : 'https://www.unifiedtoolspro.xyz';
-      const targetUrl = `${baseUrl}/tools/image-converter?src=${encodeURIComponent(currentPreview.url)}`;
-      chrome.tabs.create({ url: targetUrl });
+
+  modalSavePng.addEventListener('click', async () => {
+    if (!currentPreview) return;
+    try {
+      showToast('Converting to lossless PNG...', 'ok');
+      const res = await fetch(currentPreview.url);
+      const blob = await res.blob();
+      const pngBlob = await convertImageBlob(blob, 'image/png');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const baseName = getFilename(currentPreview.url).replace(/\.[^.]+$/, '');
+        chrome.downloads.download({
+          url: reader.result,
+          filename: `media-extractor-pro/${baseName}.png`,
+          saveAs: false
+        });
+        showToast('Saved lossless PNG!', 'ok');
+      };
+      reader.readAsDataURL(pngBlob);
+    } catch {
+      showToast('Failed to convert image', 'err');
     }
   });
 
@@ -719,7 +856,7 @@ function setupListeners() {
     }
   });
 
-  // ── About / Info Panel ──────────────────────
+  // About Panel
   const infoBtn    = $('infoBtn');
   const aboutPanel = $('aboutPanel');
   const aboutClose = $('aboutClose');
@@ -734,16 +871,11 @@ function setupListeners() {
   }
 
   infoBtn.addEventListener('click', () => {
-    if (aboutPanel.classList.contains('open')) {
-      closeAboutPanel();
-    } else {
-      openAboutPanel();
-    }
+    if (aboutPanel.classList.contains('open')) closeAboutPanel();
+    else openAboutPanel();
   });
-
   aboutClose.addEventListener('click', closeAboutPanel);
 
-  // Close panel when clicking outside of it
   document.addEventListener('click', e => {
     if (
       aboutPanel.classList.contains('open') &&
@@ -755,7 +887,6 @@ function setupListeners() {
     }
   });
 
-  // External links (open in new tab)
   $('linkHome').addEventListener('click', e => {
     e.preventDefault();
     chrome.tabs.create({ url: 'https://www.unifiedtoolspro.xyz/' });
@@ -774,7 +905,6 @@ function setupListeners() {
   });
 }
 
-
 // ── Download Handling ─────────────────────────
 async function handleDownloadAll() {
   const toDownload = selected.size > 0
@@ -788,21 +918,108 @@ async function handleDownloadAll() {
   for (let i = 0; i < toDownload.length; i++) {
     await downloadSingle(toDownload[i].url, i + 1);
     showProgressToast(i + 1, toDownload.length);
-    if (i < toDownload.length - 1) await sleep(300); // delay to prevent download rate limiting
+    if (i < toDownload.length - 1) await sleep(280);
   }
 }
 
-function showProgressToast(current, total) {
+// ── One-Click Bulk "Download as ZIP" ──────────
+async function handleDownloadZip() {
+  if (typeof JSZip === 'undefined') {
+    showToast('ZIP library loading...', 'err');
+    return;
+  }
+
+  const toDownload = selected.size > 0
+    ? filteredMedia.filter(i => selected.has(i.url))
+    : filteredMedia;
+
+  if (!toDownload.length) { showToast('No media selected for ZIP', 'err'); return; }
+
+  const zip = new JSZip();
+  const subfolder = subfolderInput?.value.trim() || 'media-extractor-pro';
+  const shouldConvertWebp = convertWebpCheck?.checked || false;
+
+  showProgressToast(0, toDownload.length, 'Packaging ZIP archive...');
+
+  let addedCount = 0;
+  for (let i = 0; i < toDownload.length; i++) {
+    const item = toDownload[i];
+    let downloadUrl = item.url;
+
+    // Resolve Pinterest alternative if needed
+    if (downloadUrl.includes('pinimg.com/videos')) {
+      const alts = getPinterestAlternativeUrls(downloadUrl);
+      for (const alt of alts) {
+        try {
+          const resp = await fetch(alt, { method: 'HEAD' });
+          const ctype = resp.headers.get('content-type') || '';
+          if (resp.ok && (ctype.includes('video') || ctype.includes('octet-stream') || !ctype.includes('xml'))) {
+            downloadUrl = alt;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    try {
+      const resp = await fetch(downloadUrl);
+      if (!resp.ok) continue;
+
+      let blob = await resp.blob();
+      let originalFilename = getFilename(downloadUrl);
+      let ext = getExt(downloadUrl);
+
+      // Offline WebP/AVIF to JPG transcoding inside ZIP
+      if (shouldConvertWebp && (ext === 'webp' || ext === 'avif')) {
+        try {
+          blob = await convertImageBlob(blob, 'image/jpeg', 0.95);
+          originalFilename = originalFilename.replace(/\.(webp|avif)$/i, '.jpg');
+        } catch {}
+      }
+
+      if (currentTab === 'videos' && (ext === 'unknown' || ext === 'cmfv' || ext === 'bin')) {
+        originalFilename = originalFilename.replace(/\.[^.]+$/, '') + '.mp4';
+      }
+
+      zip.file(originalFilename, blob);
+      addedCount++;
+    } catch {}
+
+    showProgressToast(i + 1, toDownload.length, `Archiving: ${i + 1} / ${toDownload.length}`);
+    if (i < toDownload.length - 1) await sleep(50);
+  }
+
+  if (addedCount === 0) {
+    showToast('Failed to fetch media for ZIP', 'err');
+    return;
+  }
+
+  showToast('Generating final ZIP file...', 'ok');
+  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    chrome.downloads.download({
+      url: reader.result,
+      filename: `${subfolder}.zip`,
+      saveAs: true
+    });
+    showToast(`🎉 Packaged all ${addedCount} files into ${subfolder}.zip!`, 'ok');
+  };
+  reader.readAsDataURL(zipBlob);
+}
+
+function showProgressToast(current, total, prefix = 'Downloading') {
   const percent = Math.round((current / total) * 100);
-  let msg = `Downloading: ${current} / ${total} items (${percent}%)`;
-  if (current === total) {
-    msg = `🎉 Successfully downloaded all ${total} items!`;
+  let msg = `${prefix}: ${current} / ${total} (${percent}%)`;
+  if (current === total && !prefix.includes('Archiving')) {
+    msg = `🎉 Successfully processed all ${total} items!`;
     showToast(msg, 'ok');
   } else {
     toast.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:6px; width:100%; text-align:left;">
         <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
-          <span>⏳ Downloading...</span>
+          <span>⏳ ${prefix}</span>
           <span>${current}/${total} (${percent}%)</span>
         </div>
         <div style="width:100%; height:4px; background:rgba(255,255,255,0.2); border-radius:2px; overflow:hidden;">
@@ -824,21 +1041,19 @@ function getPinterestAlternativeUrls(url) {
   return isIht ? [
     `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
     `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
-    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
-    `https://v.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`
   ] : [
     `https://v1.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`,
     `https://v1.pinimg.com/videos/iht/expMp4/${p1}/${p2}/${p3}/${hash}_720w.mp4`,
-    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`,
-    `https://v.pinimg.com/videos/mc/720p/${p1}/${p2}/${p3}/${hash}.mp4`
+    `https://v1.pinimg.com/videos/mc/expMp4/${p1}/${p2}/${p3}/${hash}_t1.mp4`
   ];
 }
 
 async function downloadSingle(url, index = 1) {
-  // Direct video/image files (MP4, WebM, JPG, PNG etc.)
   const subfolder = subfolderInput?.value.trim() || 'media-extractor-pro';
   const renamePattern = renamePatternInput?.value.trim() || '';
-  
+  const shouldConvertWebp = convertWebpCheck?.checked || false;
+
   let downloadUrl = url;
   if (url.includes('pinimg.com/videos')) {
     const alts = getPinterestAlternativeUrls(url);
@@ -856,16 +1071,43 @@ async function downloadSingle(url, index = 1) {
 
   let originalFilename = getFilename(downloadUrl);
   let ext = getExt(downloadUrl);
+
   if (currentTab === 'videos') {
     if (ext === 'unknown' || ext === 'png' || ext === 'cmfv' || ext === 'bin') ext = 'mp4';
     originalFilename = originalFilename.replace(/\.(cmfv|cmfa|bin|unknown)$/i, '.mp4');
     if (!originalFilename.toLowerCase().endsWith('.mp4') && !originalFilename.toLowerCase().endsWith('.webm')) {
       originalFilename += '.mp4';
     }
+  } else if (currentTab === 'audios') {
+    if (ext === 'unknown' || ext === 'bin') ext = 'mp3';
+    originalFilename = originalFilename.replace(/\.(bin|unknown)$/i, '.mp3');
   } else {
-    if (ext === 'unknown') ext = 'png'; // fallback for images
+    if (ext === 'unknown') ext = 'png';
   }
-  
+
+  // Handle WebP to JPG transcoding on download
+  if (shouldConvertWebp && (ext === 'webp' || ext === 'avif')) {
+    try {
+      const res = await fetch(downloadUrl);
+      const blob = await res.blob();
+      const jpgBlob = await convertImageBlob(blob, 'image/jpeg', 0.95);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        let finalJpgName = originalFilename.replace(/\.(webp|avif)$/i, '.jpg');
+        if (renamePattern) {
+          finalJpgName = renamePattern.includes('[index]') ? renamePattern.replace(/\[index\]/g, String(index)) + '.jpg' : `${renamePattern}-${index}.jpg`;
+        }
+        chrome.downloads.download({
+          url: reader.result,
+          filename: `${subfolder}/${finalJpgName}`,
+          saveAs: false
+        });
+      };
+      reader.readAsDataURL(jpgBlob);
+      return;
+    } catch {}
+  }
+
   let finalFilename = originalFilename;
   if (renamePattern) {
     let formattedPattern = renamePattern;
@@ -881,7 +1123,7 @@ async function downloadSingle(url, index = 1) {
   try {
     await chrome.runtime.sendMessage({ action: 'downloadImage', url: downloadUrl, filename });
   } catch {
-    chrome.tabs.create({ url: downloadUrl }); // fallback
+    chrome.tabs.create({ url: downloadUrl });
   }
 }
 
@@ -903,7 +1145,6 @@ function handleExportCsv() {
 
   if (!toExport.length) { showToast('No media to export', 'err'); return; }
 
-  // CSV Headers: URL, Type, Width, Height, Alt Text/Title
   let csvContent = "data:text/csv;charset=utf-8,";
   csvContent += "URL,Type,Width,Height,Alt Text / Title\n";
 
@@ -913,7 +1154,6 @@ function handleExportCsv() {
     const width = item.width || "";
     const height = item.height || "";
     const alt = (item.alt || item.title || "").replace(/"/g, '""');
-    
     csvContent += `"${url}","${type}","${width}","${height}","${alt}"\n`;
   });
 
@@ -925,38 +1165,6 @@ function handleExportCsv() {
   link.click();
   document.body.removeChild(link);
   showToast(`${toExport.length} items exported to CSV!`, 'ok');
-}
-
-// ── Bulk Convert Handling ──────────────────────
-async function handleBulkConvert() {
-  const toConvert = selected.size > 0
-    ? filteredMedia.filter(i => selected.has(i.url))
-    : filteredMedia;
-
-  if (!toConvert.length) { showToast('No images to convert', 'err'); return; }
-
-  // Filter only images (exclude videos/unknowns)
-  const imageItems = toConvert.filter(i => {
-    const ext = i.type || getExt(i.url);
-    return imageExts.includes(ext);
-  });
-
-  if (!imageItems.length) { showToast('No eligible images selected', 'err'); return; }
-
-  showToast(`Sending ${imageItems.length} images to converter...`, 'ok');
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const isLocal = tab && tab.url && tab.url.includes('localhost');
-  const baseUrl = isLocal ? 'http://localhost:3000' : 'https://www.unifiedtoolspro.xyz';
-  
-  let queryString = `?`;
-  imageItems.forEach((item, idx) => {
-    if (idx > 0) queryString += `&`;
-    queryString += `src=${encodeURIComponent(item.url)}`;
-  });
-  
-  const targetUrl = `${baseUrl}/tools/image-converter${queryString}`;
-  chrome.tabs.create({ url: targetUrl });
 }
 
 function copyText(text, msg) {
@@ -974,50 +1182,41 @@ function copyText(text, msg) {
 // ── Preview Modal ─────────────────────────────
 function openPreview(item) {
   currentPreview = item;
-  
-  // Hide all modal media components initially
+
   previewImg.style.display = 'none';
   previewVideo.style.display = 'none';
+  previewAudio.style.display = 'none';
   previewIframe.style.display = 'none';
+  modalSaveJpg.style.display = 'none';
+  modalSavePng.style.display = 'none';
 
   const isVideo = currentTab === 'videos';
+  const isAudio = currentTab === 'audios';
+  const isImage = currentTab === 'images';
   const typeLabel = (item.type && item.type !== 'unknown') ? item.type.toUpperCase() : getExt(item.url).toUpperCase();
   const dimText = (item.width && item.height) ? `${item.width} × ${item.height}px` : null;
 
-  // Render correct media element inside preview modal
-  if (isVideo) {
-    // Standard video file
+  if (isAudio) {
+    previewAudio.src = item.url;
+    previewAudio.style.display = 'block';
+    previewAudio.play().catch(() => {});
+    modalDownload.textContent = 'Download Audio';
+  } else if (isVideo) {
     previewVideo.src = item.url;
     previewVideo.style.display = '';
     previewVideo.load();
     previewVideo.play().catch(() => {});
-
-    // Fallback if video fails to load due to 403 Forbidden
-    previewVideo.onerror = function () {
-      if (item.url.includes('pinimg.com/videos')) {
-        const alts = getPinterestAlternativeUrls(item.url);
-        const currentSrc = previewVideo.currentSrc || previewVideo.src;
-        const currentIdx = alts.indexOf(currentSrc);
-        const nextUrl = alts[currentIdx + 1];
-        if (nextUrl) {
-          previewVideo.src = nextUrl;
-          item.url = nextUrl;
-          modalUrl.textContent = nextUrl;
-          previewVideo.load();
-          previewVideo.play().catch(() => {});
-        }
-      }
-    };
+    modalDownload.textContent = 'Download MP4';
   } else {
-    // Image element
     previewImg.src = item.url;
     previewImg.style.display = '';
     previewImg.onerror = () => { previewImg.alt = 'Could not load image'; };
-  }
+    modalDownload.textContent = 'Download';
 
-  // Update button text
-  modalDownload.textContent = isVideo ? 'Download MP4' : 'Download';
-  modalOpenTab.style.display = '';
+    // Enable offline format conversion buttons
+    modalSaveJpg.style.display = '';
+    modalSavePng.style.display = '';
+  }
 
   if (item.rawSvg) {
     modalCopySvg.style.display = '';
@@ -1030,9 +1229,9 @@ function openPreview(item) {
     <span class="meta-pill">🏷️ ${esc(typeLabel)}</span>
     ${dimText ? `<span class="meta-pill">📐 ${dimText}</span>` : ''}
     <span class="meta-pill">🔗 ${esc(item.source || 'source')}</span>
-    <div class="meta-alt-pill ${item.alt ? 'has-alt' : 'no-alt'}">
-      <span>📝 Alt:</span>
-      <strong>${esc(item.alt || '(No Alt Text)')}</strong>
+    <div class="meta-alt-pill ${item.alt || item.title ? 'has-alt' : 'no-alt'}">
+      <span>📝 Alt/Title:</span>
+      <strong>${esc(item.alt || item.title || '(None)')}</strong>
     </div>
   `;
   modalUrl.textContent = item.url;
@@ -1042,19 +1241,14 @@ function openPreview(item) {
 function closePreview() {
   modal.classList.remove('open');
   modalCopySvg.onclick = null;
-  
-  // Clear/Pause src attributes to stop background sounds
+
   previewImg.src = '';
-  previewImg.style.cursor = '';
-  previewImg.onclick = null;
-  previewImg.closest('.modal-img-wrap').classList.remove('yt-thumb-wrap');
-  
   previewVideo.pause();
   previewVideo.src = '';
-  
+  previewAudio.pause();
+  previewAudio.src = '';
   previewIframe.src = '';
-  modalOpenTab.style.display = '';
-  
+
   currentPreview = null;
 }
 
@@ -1072,18 +1266,16 @@ function getFilename(url) {
   try {
     const name = url.split('?')[0].split('/').pop();
     if (name && /\.\w{2,5}$/.test(name)) return name;
-  } catch { /* noop */ }
+  } catch {}
   return `file_${Date.now()}.${getExt(url) !== 'unknown' ? getExt(url) : 'bin'}`;
 }
 
 function getExt(url) {
   try {
     const ext = url.split('?')[0].split('.').pop().toLowerCase();
-    return [...imageExts, ...videoExts].includes(ext) ? ext : 'unknown';
+    return [...imageExts, ...videoExts, ...audioExts].includes(ext) ? ext : 'unknown';
   } catch { return 'unknown'; }
 }
-
-
 
 function esc(str) {
   if (!str) return '';

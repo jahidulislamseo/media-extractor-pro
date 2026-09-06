@@ -1,42 +1,24 @@
-# Media Extractor Pro — Chrome Extension
+# Media Extractor Pro — Chrome Extension (v2.0.0)
 
-[![⬇️ Download ZIP (v1.2.6)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v1.2.6-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v1.2.6-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
+[![⬇️ Download ZIP (v2.0.0)](https://img.shields.io/badge/⬇️_Download_Extension_ZIP-v2.0.0-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v2.0.0-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/media-extractor-pro/edeandmopjnajlgijafaajopdbleoklj)
 
-> 🚀 **Direct Download:** **[👉 Click Here to Download Extension ZIP (v1.2.6)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)**  
+> 🚀 **Direct Download:** **[👉 Click Here to Download Extension ZIP (v2.0.0)](https://github.com/jahidulislamseo/media-extractor-pro/archive/refs/heads/master.zip)**  
 > *Unzip the file → Go to `chrome://extensions` → Turn on **Developer mode** → Click **Load unpacked** and select the folder.*
 
-A premium Chrome Extension built with Manifest V3 to extract, preview, filter, and download all images and videos from any webpage instantly. Highly integrated with the UnifiedTools Pro website converter.
+A high-performance Chrome Extension built with Manifest V3 to extract, preview, filter, and download images, videos, and audio tracks from any webpage instantly. Includes built-in offline ZIP archiving, deep feed auto-scrolling, and canvas format conversion.
 
 ![Media Extractor Pro Icon](icons/icon128.png)
 
-## Features
+## 🌟 What's New in v2.0.0 (Powerhouse Suite)
 
-### 🖼️ Image Extraction
-- **DOM Image Extraction:** Detects all standard `<img>` tags, dynamic `srcset` tags, picture sources, and lazy-loading elements.
-- **CSS Background Detector:** Scans computed CSS styles to extract background images.
-- **⚡ Inline SVG Scraper (New):** Extracts raw inline `<svg>` templates from the DOM. Enables copying the XML source code directly to your clipboard in one click!
-- **Image Formats Supported:** JPG, PNG, GIF, WEBP, SVG, AVIF, BMP, ICO.
-
-### 🎥 Video Extraction
-- **HTML5 Video Player Detector:** Scans `<video>` tags and their `<source>` children to extract direct video files (MP4, WebM, OGV, etc.).
-- **Video Scraper:** Detects standard HTML5 video elements and video file sources.
-- **Video Formats Supported:** MP4, WEBM, OGV, MOV, M4V, 3GP, AVI, FLV, MKV.
-
-### 📊 SEO Alt-Text Audit & CSV Export (New)
-- **Alt-Text Badge Indicators:** Displays alt text directly on preview cards. Features visual status indicators (emerald green for completed Alt texts, amber/orange for missing Alt text tags) so you can audit webpage SEO at a glance.
-- **Spreadsheet Export:** Export all extracted image URLs, file formats, dimensions, and Alt tags directly to a structured `.csv` sheet with a single click.
-
-### ⚙️ Customizable Renaming & Subfolders (New)
-- **Organized Subfolders:** Set a custom folder path under your Downloads directory (e.g. `Downloads/my-subfolder/`).
-- **Smart Renaming Patterns:** Configure name templates using numbering placeholders (e.g., `logo-[index]` to automatically save files as `logo-1.png`, `logo-2.png`, etc.).
-
-### 🔗 Website Image Converter Integration (New)
-- **Single Redirect:** Inside the full-screen modal preview, click the **"Convert Image"** button to load the image directly into the UnifiedTools Pro converter.
-- **Bulk Convert:** Select multiple images (or click "Select All") and click the **"Convert"** button in the bottom bar to open all images at once on the `UnifiedTools Pro` converter page for instant conversion (WebP, PNG, etc.).
-
-### ⏳ Live Download Progress Toast (New)
-- Replaced static notifications with a sleek, animated percentage and width-transitioning progress strip. Perfect for tracking large bulk download queues.
+1. **📦 1-Click "Download as ZIP":** Package all selected or filtered media into a single uncompressed or compressed `.zip` archive offline using bundled local JSZip 3.10.1 (no 50 individual download prompts).
+2. **🔄 Auto-Scroll & Deep Scraper Engine:** Scrape infinite-scroll feeds (Pinterest, Instagram, Unsplash, etc.) automatically at custom speeds with live telemetry.
+3. **🎵 Audio / MP3 Extractor Tab:** Dedicated `Audios` tab detecting `<audio>`, audio sources, and podcast media with an in-popup player preview.
+4. **📐 Dynamic Dimension Slider:** Filter media dynamically by minimum resolution (e.g., exclude icons <150px, keep only >1080p Full HD).
+5. **🎨 Offline Canvas Image Converter:** Transcode modern WebP and AVIF formats into clean JPG and PNG formats directly on your machine without external web requests.
+6. **🖱️ Right-Click Context Menu:** Instant right-click shortcuts to extract media from any page or directly download image/video assets in original master resolution.
+7. **📸 Specialized High-Res Parsers:** High-fidelity parsers for Instagram carousels & reels, TikTok clean videos, and Pinterest original master resolutions.
 
 ---
 
