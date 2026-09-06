@@ -68,6 +68,67 @@ async function resolveValidPinterestDownloadUrl(url) {
   return url;
 }
 
+// ── Original High-Resolution Image Resolver ───
+async function resolveOriginalImageUrl(url) {
+  if (!url) return url;
+
+  // 1. Pinterest Images (NOT video files)
+  if (url.includes('pinimg.com') && !url.includes('/videos/')) {
+    if (url.includes('/originals/')) return url;
+
+    // Test originals first
+    const origUrl = url.replace(/\/(?:236x|474x|564x|736x|1200x)\//, '/originals/');
+    try {
+      const resp = await fetch(origUrl, { method: 'HEAD' });
+      const ctype = resp.headers.get('content-type') || '';
+      if (resp.ok && ctype.includes('image')) {
+        return origUrl;
+      }
+    } catch {}
+
+    // Fallback to 736x
+    const highResUrl = url.replace(/\/(?:236x|474x|564x|1200x)\//, '/736x/');
+    try {
+      const resp = await fetch(highResUrl, { method: 'HEAD' });
+      const ctype = resp.headers.get('content-type') || '';
+      if (resp.ok && ctype.includes('image')) {
+        return highResUrl;
+      }
+    } catch {}
+
+    return url;
+  }
+
+  // 2. Twitter / X
+  if (url.includes('twimg.com')) {
+    return url.replace(/([?&]name=)[a-z0-9_]+/i, '$1orig');
+  }
+
+  // 3. WordPress
+  if (url.match(/-\d{2,4}x\d{2,4}\.(jpe?g|png|webp|avif)$/i)) {
+    return url.replace(/-\d{2,4}x\d{2,4}(\.(jpe?g|png|webp|avif))$/i, '$1');
+  }
+
+  // 4. Google / Blogspot
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    if (url.match(/=(?:w\d+-h\d+|s\d+)(?:-[a-z0-9]+)*$/i)) {
+      return url.replace(/=(?:w\d+-h\d+|s\d+)(?:-[a-z0-9]+)*$/i, '=s0');
+    }
+  }
+
+  // 5. Shopify
+  if (url.includes('cdn.shopify.com')) {
+    return url.replace(/_(?:pico|icon|thumb|small|compact|medium|large|grande|1024x1024|2048x2048)\./i, '.');
+  }
+
+  // 6. Reddit
+  if (url.includes('preview.redd.it')) {
+    return url.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+  }
+
+  return url;
+}
+
 // ── Message Handler ───────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const tabId = sender.tab?.id;
@@ -85,6 +146,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         if (url.includes('pinimg.com/videos')) {
           url = await resolveValidPinterestDownloadUrl(url);
+        } else {
+          url = await resolveOriginalImageUrl(url);
         }
         await chrome.downloads.download({
           url,

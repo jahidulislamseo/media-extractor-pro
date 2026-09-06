@@ -68,15 +68,52 @@
 
 
 
+  // ─── High-Resolution Image Helper ─────────────
+  function getHighResImageUrl(url) {
+    if (!url) return url;
+    try {
+      // 1. Pinterest (skip video CDN frames)
+      if (url.includes('pinimg.com') && !url.includes('/videos/')) {
+        return url.replace(/\/(?:236x|474x|564x)\//, '/736x/');
+      }
+      // 2. Twitter / X
+      if (url.includes('twimg.com')) {
+        return url.replace(/([?&]name=)[a-z0-9_]+/i, '$1orig');
+      }
+      // 3. WordPress (strip -300x200 resized suffixes)
+      if (url.match(/-\d{2,4}x\d{2,4}\.(jpe?g|png|webp|avif)$/i)) {
+        return url.replace(/-\d{2,4}x\d{2,4}(\.(jpe?g|png|webp|avif))$/i, '$1');
+      }
+      // 4. Google / Blogspot (=w...-h... or =s... -> =s0)
+      if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+        if (url.match(/=(?:w\d+-h\d+|s\d+)(?:-[a-z0-9]+)*$/i)) {
+          return url.replace(/=(?:w\d+-h\d+|s\d+)(?:-[a-z0-9]+)*$/i, '=s0');
+        }
+      }
+      // 5. Shopify
+      if (url.includes('cdn.shopify.com')) {
+        return url.replace(/_(?:pico|icon|thumb|small|compact|medium|large|grande|1024x1024|2048x2048)\./i, '.');
+      }
+      // 6. Reddit
+      if (url.includes('preview.redd.it')) {
+        return url.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+      }
+    } catch {}
+    return url;
+  }
+
   // ─── Image Extractor ───────────────────────
   function extractImages() {
     const map = new Map(); // url → metadata
 
     function addImage(rawUrl, extra = {}) {
-      const url = resolveUrl(rawUrl);
-      if (!url || map.has(url)) return;
-      const ext = getExt(url);
+      const cleanUrl = resolveUrl(rawUrl);
+      if (!cleanUrl) return;
+      const ext = getExt(cleanUrl);
       if (videoExts.includes(ext)) return; // skip videos here
+
+      const url = getHighResImageUrl(cleanUrl);
+      if (map.has(url)) return;
 
       map.set(url, {
         url,
